@@ -56,6 +56,7 @@ uniform Material uMat;
 uniform DirLight uSun;
 uniform vec3 uCameraPos;
 uniform SpotLight allLights[MAX_LIGHTS];
+uniform bool isIlluminating;
 
 vec3 rgbToLinear(vec3 col) {
     return pow(col, vec3(2.2));
@@ -104,6 +105,9 @@ void main() {
     
     if (vNormal.x == 0 && vNormal.y == 0 && vNormal.z == 0) {
         fFragColor = texture(uTex, vTexCoord);
+        if (isIlluminating) {
+            fFragColor *= vec4(2.0, 2.0, 2.0, 1.0);
+        }
     } else {
         // Calculating diffuse
         vec4 color = mix(uMat.color, texture(uTex, vTexCoord), uMat.texFactor);
@@ -119,14 +123,13 @@ void main() {
         // Only calculate spot light if there is a diffuse map. This is to avoid lighting on
         // the sky box
         vec3 resultPointLightTotal;
-        resultPointLightTotal.r = 0, resultPointLightTotal.g = 0, resultPointLightTotal.b = 0;
         if (uMat.texFactor == 1.0f) {
             for (int i = 0; i < MAX_LIGHTS; i++) {
                 if (allLights[i].position.x >= 0 && allLights[i].position.y >= 0 && allLights[i].position.z >= 0) {
                     resultPointLightTotal += rgbToLinear(calcPointLight(allLights[i], color.rgb, mat_specularV3));
                 }
             }
-            diffuse = diffuse * calcShadow();
+            diffuse = diffuse * calcShadow(); // Decides if the fragment is within a shadow
         }
         fFragColor = vec4(linearToRgb((ambient + diffuse + resultPointLightTotal) * color.rgb), color.a);
     }

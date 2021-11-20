@@ -181,6 +181,9 @@ namespace scene {
         const size_t WORLD_HEIGHT = 50;
         const size_t MAX_STARS = 200;
         
+        GLuint quadVAO = 0;
+        GLuint quadVBO;
+
         float eyeLevel = 1.0f;
         bool shiftMode = false;
         float walkingMultiplier = 0.5f;
@@ -312,7 +315,6 @@ namespace scene {
             centreOfWorld.children.push_back(sun);
             centreOfWorld.children.push_back(moonOrbit);
             moonIndex = centreOfWorld.children.size() - (size_t)1;
-            // skyIndex = centreOfWorldNode.children.size() - (size_t)1;
 
             // SETTING UP SCREEN SCENE GRAPH
 
@@ -331,7 +333,7 @@ namespace scene {
             hotbar.push_back(combineBlockData("crafting_table", false, false));
             hotbar.push_back(combineBlockData("oak_planks", false, false));
             hotbar.push_back(combineBlockData("oak_log", false, false, true));
-            hotbar.push_back(combineBlockData("oak_leaves", true, false));
+            hotbar.push_back(combineBlockData("oak_leaves", false, false));
             hotbar.push_back(combineBlockData("cobblestone", false, false));
             hotbar.push_back(combineBlockData("mossy_cobblestone", false, false));
             hotbar.push_back(combineBlockData("stone", false, false));
@@ -339,7 +341,7 @@ namespace scene {
             hotbar.push_back(combineBlockData("mossy_stone_bricks", false, false));
             hotbar.push_back(combineBlockData("cracked_stone_bricks", false, false));
             hotbar.push_back(combineBlockData("glass", true, false));
-            hotbar.push_back(combineBlockData("sea_lantern", false, true, false, glm::vec3(212.0f, 235.0f, 255.0f) * (1.0f / 255.0f), 1.6f));
+            hotbar.push_back(combineBlockData("sea_lantern", false, true, false, glm::vec3(212.0f, 235.0f, 255.0f) * (1.0f / 255.0f), 5.0f));
             hotbar.push_back(combineBlockData("magma", false, true, false, glm::vec3(244.0f, 133.0f, 34.0f) * (1.0f / 255.0f), 1.5f));
             hotbar.push_back(combineBlockData("glowstone", false, true, false, glm::vec3(251.0f, 218.0f, 116.0f) * (1.0f / 255.0f), 1.6f));
             hotbar.push_back(combineBlockData("crying_obsidian", false, true, false, glm::vec3(131.0f, 8.0f, 228.0f) * (1.0f / 255.0f), 2.0f));
@@ -1318,11 +1320,8 @@ namespace scene {
             glClearColor(1.f, 1.f, 1.f, 1.f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            renderInfo.setBasePters(playerCamera.pos);
-            
-		    glUniformMatrix4fv(renderInfo.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
-
             if (!renderInfo.isShadowProgram) {
+                renderInfo.setBasePters(playerCamera.pos);
                 drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo, defaultSpecular);
             }
             drawTerrain(glm::mat4(1.0f), renderInfo);
@@ -1514,6 +1513,35 @@ namespace scene {
                     }  
                 }
             }
+        }
+
+        /**
+         * @brief Draws a quadrangle
+         * 
+         */
+        void renderQuad() {
+            if (quadVAO == 0) {
+                float quadVertices[] = {
+                    // positions        // texture Coords
+                    -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+                    -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+                    1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+                    1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+                };
+                // setup plane VAO
+                glGenVertexArrays(1, &quadVAO);
+                glGenBuffers(1, &quadVBO);
+                glBindVertexArray(quadVAO);
+                glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+                glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+            }
+            glBindVertexArray(quadVAO);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glBindVertexArray(0);
         }
 
         /**

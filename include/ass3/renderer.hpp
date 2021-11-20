@@ -59,7 +59,6 @@ namespace renderer {
 		GLint uSpec_loc;
 		GLint uDepth_loc;
 
-
 		GLint mat_tex_factor_loc;
 		GLint mat_specular_factor_loc;
 		GLint mat_specular_loc;
@@ -71,35 +70,41 @@ namespace renderer {
 		std::vector<lightSource> allLightSources;
 		int totalPointLights = 0;
 
+
+		/**
+		 * @brief Creates the program based on name given. Will override the program currently stored
+		 * 
+		 */
+		void createProgram(std::string programName) {
+			chicken3421::delete_program(program);
+			std::string directory = "res/shaders/" + programName;
+			auto vs = chicken3421::make_shader(directory + ".vert", GL_VERTEX_SHADER);
+			auto fs = chicken3421::make_shader(directory + ".frag", GL_FRAGMENT_SHADER);
+			program = chicken3421::make_program(vs, fs);
+			chicken3421::delete_shader(vs);
+			chicken3421::delete_shader(fs);
+			if (programName == "shadow") {
+				isShadowProgram = true;
+			}
+		}
+
+		void setUpShadow() {
+			light_proj_loc = chicken3421::get_uniform_location(program, "uLightProj");
+			model_loc = chicken3421::get_uniform_location(program, "uModel");
+		}
+
 		/**
 		 * @brief Creates the program with the given width and height and initialises all the different shader locations
-		 * 
+		 * This creates basic program only
 		 * @param width 
 		 * @param height 
 		 */
-		void initialise(int width, int height, bool shadowProgram = false) {
-			isShadowProgram = shadowProgram;
-			if (shadowProgram) {
-				auto shadowVert = chicken3421::make_shader("res/shaders/shadow.vert", GL_VERTEX_SHADER);
-				auto shadowFrag = chicken3421::make_shader("res/shaders/shadow.frag", GL_FRAGMENT_SHADER);
-				program = chicken3421::make_program(shadowVert, shadowFrag);
-				chicken3421::delete_shader(shadowVert);
-				chicken3421::delete_shader(shadowFrag);
-				// Gets MVP_Loc
-				light_proj_loc = chicken3421::get_uniform_location(program, "uLightProj");
-				model_loc = chicken3421::get_uniform_location(program, "uModel");
-				return;
-			} else {
-				auto vs = chicken3421::make_shader("res/shaders/default.vert", GL_VERTEX_SHADER);
-				auto fs = chicken3421::make_shader("res/shaders/default.frag", GL_FRAGMENT_SHADER);
-				program = chicken3421::make_program(vs, fs);
-				chicken3421::delete_shader(vs);
-				chicken3421::delete_shader(fs);
-				// Gets MVP_Loc
-				view_proj_loc = chicken3421::get_uniform_location(program, "uViewProj");
-				light_proj_loc = chicken3421::get_uniform_location(program, "uLightProj");
-				model_loc = chicken3421::get_uniform_location(program, "uModel");
-			}
+		void initialise(int width, int height) {
+
+			// Gets MVP_Loc
+			view_proj_loc = chicken3421::get_uniform_location(program, "uViewProj");
+			light_proj_loc = chicken3421::get_uniform_location(program, "uLightProj");
+			model_loc = chicken3421::get_uniform_location(program, "uModel");
 
 			uTex_loc = chicken3421::get_uniform_location(program, "uTex");
 			uSpec_loc = chicken3421::get_uniform_location(program, "uSpec");
@@ -133,6 +138,22 @@ namespace renderer {
 				light.position = {-1, -1, -1};
 				allLightSources.push_back(light);
 			}
+		}
+
+		/**
+		 * @brief Uses this shader
+		 * 
+		 */
+		void activate() {
+			glUseProgram(program);
+		}
+
+		void setInt(const std::string &name, int value) const {
+			glUniform1i(chicken3421::get_uniform_location(program, name.c_str()), value); 
+		}
+
+		void setFloat(const std::string &name, float value) const { 
+			glUniform1f(chicken3421::get_uniform_location(program, name.c_str()), value); 
 		}
 
 		/**
@@ -204,11 +225,10 @@ namespace renderer {
 				glUniform3fv(light.position_loc, 1, glm::value_ptr(light.position));
 				glUniform1f(light.intensity_loc, light.intensity);
 			}
-
-			// Pointing to the different textures
-			glUniform1i(uTex_loc, 0);
+            glUniform1i(uTex_loc, 0);
 			glUniform1i(uSpec_loc, 1);
 			glUniform1i(uDepth_loc, 2);
+			// Pointing to the different textures
 		}
 
 		/**

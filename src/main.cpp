@@ -32,8 +32,10 @@ const float W_PRESS_SPACE = 0.4f;
 
 struct pointerInformation {
     scene::world *gameWorld;
-    renderer::renderer_t *renderInfo;
+    renderer::renderer_t *defaultShader;
     float frameRate = 0, lastWPressed = 0;
+    float exposureLevel = 1.0f;
+    bool autoExposure = true;
 };
 
 int main() {
@@ -361,23 +363,28 @@ int main() {
     }
 
     // Setting up all the render informations
-    renderer::renderer_t renderInfo;
-    renderInfo.initialise(WIN_WIDTH, WIN_HEIGHT);
-    scene::world gameWorld(listOfBlocks, renderDistance, worldWidth, &renderInfo);
+    renderer::renderer_t defaultShader;
+    defaultShader.createProgram("default");
+    defaultShader.initialise(WIN_WIDTH, WIN_HEIGHT);
+    scene::world gameWorld(listOfBlocks, renderDistance, worldWidth, &defaultShader);
 
-    renderer::renderer_t renderInfoShadow;
-    renderInfoShadow.initialise(SHADOW_WIDTH, SHADOW_HEIGHT, true);
+    renderer::renderer_t shadowShader;
+    shadowShader.createProgram("shadow");
+    shadowShader.setUpShadow();
+    renderer::renderer_t hdrShader;
+    hdrShader.createProgram("hdr");
 
     // SETTING UP ALL CALLBACKS
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwSetKeyCallback(window, [](GLFWwindow *win, int key, int scancode, int action, int mods) {
         // Close program if esc is pressed
-        if (action != GLFW_PRESS) return;
+        
         pointerInformation *info = (pointerInformation *) glfwGetWindowUserPointer(win);
         if (key != GLFW_KEY_I && key != GLFW_KEY_TAB) info->gameWorld->toggleInstructions(true);
         switch(key) {
             case GLFW_KEY_W:
+                if (action != GLFW_PRESS) return;
                 // Double tap to run
                 if ((float)glfwGetTime() - info->lastWPressed <= W_PRESS_SPACE) {
                     info->gameWorld->runningMode = true;
@@ -389,12 +396,15 @@ int main() {
                 glfwSetWindowShouldClose(win, GLFW_TRUE);
                 break;
             case GLFW_KEY_E:
+                if (action != GLFW_PRESS) return;
                 info->gameWorld->switchHotbars();
                 break;
             case GLFW_KEY_F:
+                if (action != GLFW_PRESS) return;
                 info->gameWorld->toggleMode();
                 break;
             case GLFW_KEY_G:
+                if (action != GLFW_PRESS) return;
                 // Printing debug information
                 std::cout << "X: " << info->gameWorld->playerCamera.pos.x << " ";
                 std::cout << "Y: " << info->gameWorld->playerCamera.pos.y << " ";
@@ -402,23 +412,43 @@ int main() {
                 std::cout << "Yaw: " << info->gameWorld->playerCamera.yaw << "\n";
                 std::cout << "Pitch: " << info->gameWorld->playerCamera.pitch << "\n";
                 std::cout << "Player Vertical Velocity: " << info->gameWorld->playerCamera.yVelocity << "\n";
+                std::cout << "Exposure levels: " << info->exposureLevel << "\n";
                 std::cout << "Current frame rate: " << info->frameRate << " frames per second\n\n";
                 break;
             case GLFW_KEY_C:
+                if (action != GLFW_PRESS) return;
                 info->gameWorld->toggleCutscene();
                 break;
             case GLFW_KEY_O:
+                if (action != GLFW_PRESS) return;
                 info->gameWorld->convertCurrWorldIntoData();
                 break;
             case GLFW_KEY_I:
+                if (action != GLFW_PRESS) return;
                 info->gameWorld->toggleInstructions(!(info->gameWorld->getInstructionStatus()));
                 break;
             case GLFW_KEY_TAB:
+                if (action != GLFW_PRESS) return;
                 if (!glfwGetWindowAttrib(win, GLFW_MAXIMIZED)) {
                     glfwMaximizeWindow(win);
                 } else {
                     glfwRestoreWindow(win);
                 }  
+                break;
+            case GLFW_KEY_M:
+                 if (info->exposureLevel > 0.0f) {
+                    info->exposureLevel -= 0.01f;
+                } else {
+                    info->exposureLevel = 0.0f;
+                }
+                break;
+            case GLFW_KEY_N:
+                info->exposureLevel += 0.01f;
+                break;
+            case GLFW_KEY_COMMA:
+                if (action != GLFW_PRESS) return;
+                info->autoExposure = !info->autoExposure;
+                std::cout << "Auto exposure set to " << info->autoExposure << "\n";
                 break;
         }
     });
@@ -441,10 +471,10 @@ int main() {
 
         switch (button) {
             case GLFW_MOUSE_BUTTON_LEFT:
-                info->gameWorld->leftClickDestroy(info->renderInfo);
+                info->gameWorld->leftClickDestroy(info->defaultShader);
                 break;
             case GLFW_MOUSE_BUTTON_RIGHT:
-                info->gameWorld->rightClickPlace(info->renderInfo);
+                info->gameWorld->rightClickPlace(info->defaultShader);
                 break;
             case GLFW_MOUSE_BUTTON_MIDDLE:
                 info->gameWorld->middleClickPick();
@@ -470,21 +500,44 @@ int main() {
      */
     pointerInformation info;
     info.gameWorld = &gameWorld;
-    info.renderInfo = &renderInfo;
+    info.defaultShader = &defaultShader;
     glfwSetWindowUserPointer(window, &info);
 
-    glm::vec3 sunPosition;
     float degrees = 90;
 
     gameWorld.updateBlocksToRender(true);
     
-    // Creating a shadow map
-    GLuint depthMapFBO;
-    glGenFramebuffers(1, &depthMapFBO);
+    /**
+     * Creating post processing effects
+     */
 
-    GLuint depthMap;
-    glGenTextures(1, &depthMap);
-    glBindTexture(GL_TEXTURE_2D, depthMap);
+    // HDR
+    GLuint hdrFBO, colorBufferTexID;
+    glGenFramebuffers(1, &hdrFBO);
+    glGenTextures(1, &colorBufferTexID);
+    glBindTexture(GL_TEXTURE_2D, colorBufferTexID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    GLuint rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WIN_WIDTH, WIN_HEIGHT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBufferTexID, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "Framebuffer not complete!\n";
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Creating a DEPTH MAP
+    GLuint depthMapFBO, depthMapTexID;
+    glGenFramebuffers(1, &depthMapFBO);
+    glGenTextures(1, &depthMapTexID);
+    glBindTexture(GL_TEXTURE_2D, depthMapTexID);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -492,13 +545,15 @@ int main() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     float borderColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
-
-    // Attach dept textyre as FBO's depth buffer
+    // Attach depth texture as FBO's depth buffer
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapTexID, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // END OF DEPTH MAP CREATION
+
+    hdrShader.setInt("hdrBuffer", 0);
 
     float totalTime = 0;
     float totalFrames = 0;
@@ -521,6 +576,11 @@ int main() {
             totalTime = 0;
         }
 
+
+        if (info.autoExposure) {
+            info.exposureLevel = (degrees / 360.0f) * 5.0f + 0.01f;
+        }
+
         // Moving the day cycle around
         if (gameWorld.cutsceneEnabled) {
             degrees += 20.0f * dt;
@@ -537,47 +597,60 @@ int main() {
         glm::vec3 sunPosition = glm::vec3(gameWorld.getCentreOfWorld().x + (renderDistance) * glm::cos(glm::radians(degrees)), gameWorld.getCentreOfWorld().y + (renderDistance - 10) * glm::sin(glm::radians(degrees)), gameWorld.getCentreOfWorld().z);
         glm::vec3 sunPosOpp = glm::vec3(gameWorld.getCentreOfWorld().x + (renderDistance) * glm::cos(glm::radians(degrees + 180)), gameWorld.getCentreOfWorld().y + (renderDistance - 10) * glm::sin(glm::radians(degrees + 180)), gameWorld.getCentreOfWorld().z);
 
-        renderInfo.sun_light_dir = glm::normalize(sunPosOpp - sunPosition);
-        renderInfo.changeSunlight(degrees);
+        defaultShader.sun_light_dir = glm::normalize(sunPosOpp - sunPosition);
+        defaultShader.changeSunlight(degrees);
 
         // Get input or animate cutscene depending on the cutscene status
         if (gameWorld.getCutsceneStatus()) {
             gameWorld.animateCutscene();
         } else {
-            gameWorld.updatePlayerPositions(window, dt, &renderInfo);
+            gameWorld.updatePlayerPositions(window, dt, &defaultShader);
         }
 
-        gameWorld.updateSunPosition(degrees, renderInfo.getSkyColor(degrees), dt);
+        gameWorld.updateSunPosition(degrees, defaultShader.getSkyColor(degrees), dt);
     
         // Rendering the scene with an ortho camera
-        // glCullFace(GL_FRONT); // Peter-panning fix?
-        glUseProgram(renderInfoShadow.program);
+        shadowShader.activate();
         glm::mat4 lightProjection, lightView, lightSpaceMatrix;
+
+        // Calculating light view
         float nearPlane = 0.0f, farPlane = 2 * renderDistance;
         lightProjection = glm::ortho(-worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, -worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, nearPlane, farPlane);
         lightView = glm::lookAt(sunPosition, gameWorld.getCentreOfWorld(), glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
-        glUniformMatrix4fv(renderInfoShadow.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        glUniformMatrix4fv(shadowShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
-        gameWorld.drawWorld(renderInfoShadow, lightSpaceMatrix);
+        gameWorld.drawWorld(shadowShader, lightSpaceMatrix);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // glCullFace(GL_BACK);
 
         // Render scene as normal, using the shadow map as the 3rd texture
         // Change the view port back to normal
         int width, height;
         glfwGetWindowSize(window, &width, &height);
         glViewport(0, 0, width, height);
-        glUseProgram(renderInfo.program);
-        auto view_proj = renderInfo.projection * gameWorld.getCurrCamera()->get_view();
-        glUniformMatrix4fv(renderInfo.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
-        glUniformMatrix4fv(renderInfo.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+
+        defaultShader.activate();
+        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+        auto view_proj = defaultShader.projection * gameWorld.getCurrCamera()->get_view();
+        glUniformMatrix4fv(defaultShader.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
+        glUniformMatrix4fv(defaultShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
         // Binding the texture over
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        gameWorld.drawWorld(renderInfo, view_proj);
+        glBindTexture(GL_TEXTURE_2D, depthMapTexID);
+        gameWorld.drawWorld(defaultShader, view_proj);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        hdrShader.activate();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, colorBufferTexID);
+        hdrShader.setInt("hdr", true);
+        hdrShader.setFloat("exposure", info.exposureLevel);
+        gameWorld.renderQuad();
+
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -592,7 +665,7 @@ int main() {
     
     std::cout << "Terminating program, please standby as everything gets wiped out...\n";
     // deleting the whole window also removes the opengl context, freeing all our memory in one fell swoop.
-    renderInfo.deleteProgram();
+    defaultShader.deleteProgram();
     gameWorld.destroyEverthing();
     chicken3421::delete_opengl_window(window);
 
