@@ -21,10 +21,12 @@ void main() {
 in vec2 vTexCoord;
 in vec3 vNormal;
 in vec3 vPosition;
+in vec4 fragPosLightSpace;
 out vec4 fFragColor;
 
 uniform sampler2D uTex;
 uniform sampler2D uSpec;
+uniform sampler2D uDepthMap;
 
 struct Material {
     float texFactor;
@@ -63,6 +65,26 @@ vec3 linearToRgb(vec3 col) {
     return pow(col, vec3(1/2.2));
 }
 
+float calcShadow() {
+    vec3 pos = fragPosLightSpace.xyz * 0.5 + 0.5;
+    pos.z = pos.z > 1.0 ? 1.0 : pos.z;
+    
+    float biasLight = max(0.011 * (1.0 - dot(-uSun.direction, vNormal)), 0.005);
+
+    float returnShadowValue = 0.0f;
+    vec2 texelSize = 1.0f / textureSize(uDepthMap, 0);
+    float totalValues = 0.0f, totalSamples = 1.0f;
+
+    for (float x = -totalSamples; x <= totalSamples; x++) {
+        for (float y = -totalSamples; y <= totalSamples; y++) {
+            totalValues++;
+            float depth = texture(uDepthMap, pos.xy + vec2(x, y) * texelSize).r;
+            returnShadowValue += (depth + biasLight) < pos.z ? 0.0f : 1.0f;
+        }
+    }
+    return returnShadowValue / totalValues;
+}
+
 vec3 calcPointLight(SpotLight light, vec3 mat_diffuse, vec3 mat_specular) {
     vec3 ambient = light.ambient * mat_diffuse * uMat.ambient;
     vec3 light_direction = normalize(vPosition - light.position);
@@ -87,7 +109,8 @@ void main() {
         vec4 color = mix(uMat.color, texture(uTex, vTexCoord), uMat.texFactor);
         color.rgb = rgbToLinear(color.rgb);
         vec3 ambient = rgbToLinear(uSun.color) * pow(uSun.ambient, 2.2);
-        vec3 diffuse = rgbToLinear(uSun.color) * rgbToLinear(uMat.diffuse) * max(0, dot(-uSun.direction, vNormal));
+        float lightNormal = dot(-uSun.direction, vNormal);
+        vec3 diffuse = rgbToLinear(uSun.color) * rgbToLinear(uMat.diffuse) * max(0, lightNormal);
 
         // Calculating specular
         vec4 mat_specular = mix(uMat.specular, texture(uSpec, vTexCoord), uMat.specularFactor);
@@ -96,17 +119,15 @@ void main() {
         // Only calculate spot light if there is a diffuse map. This is to avoid lighting on
         // the sky box
         vec3 resultPointLightTotal;
-        resultPointLightTotal.r = 0;
-        resultPointLightTotal.g = 0;
-        resultPointLightTotal.b = 0;
+        resultPointLightTotal.r = 0, resultPointLightTotal.g = 0, resultPointLightTotal.b = 0;
         if (uMat.texFactor == 1.0f) {
             for (int i = 0; i < MAX_LIGHTS; i++) {
                 if (allLights[i].position.x >= 0 && allLights[i].position.y >= 0 && allLights[i].position.z >= 0) {
                     resultPointLightTotal += rgbToLinear(calcPointLight(allLights[i], color.rgb, mat_specularV3));
                 }
             }
+            diffuse = diffuse * calcShadow();
         }
-
         fFragColor = vec4(linearToRgb((ambient + diffuse + resultPointLightTotal) * color.rgb), color.a);
     }
 }

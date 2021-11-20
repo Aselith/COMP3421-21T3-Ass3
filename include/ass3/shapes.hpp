@@ -1,8 +1,8 @@
-#ifndef COMP3421_ASS2_SHAPES_HPP
-#define COMP3421_ASS2_SHAPES_HPP
+#ifndef COMP3421_ASS3_SHAPES_HPP
+#define COMP3421_ASS3_SHAPES_HPP
 
 #include <glm/glm.hpp>
-#include <ass2/static_mesh.hpp>
+#include <ass3/static_mesh.hpp>
 
 namespace shapes {
 

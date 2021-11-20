@@ -1,5 +1,5 @@
-#ifndef COMP3421_ASS2_RENDERER_HPP
-#define COMP3421_ASS2_RENDERER_HPP
+#ifndef COMP3421_ASS3_RENDERER_HPP
+#define COMP3421_ASS3_RENDERER_HPP
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
@@ -7,7 +7,7 @@
 
 #include <chicken3421/chicken3421.hpp>
 
-#include <ass2/scene.hpp>
+#include <ass3/scene.hpp>
 #include <iostream>
 #include <string>
 
@@ -44,10 +44,12 @@ namespace renderer {
 		glm::vec3 nightColor = glm::vec3((float)25/255, (float)25/255, (float)112/255);
 
 		GLuint program;
-
+		
+		bool isShadowProgram = false;
 		// vertex shader uniforms
 		GLint view_proj_loc;
 		GLint model_loc;
+		GLint light_proj_loc;
 
 		GLint sun_direction_loc;
 		GLint sun_color_loc;
@@ -55,6 +57,8 @@ namespace renderer {
 
 		GLint uTex_loc;
 		GLint uSpec_loc;
+		GLint uDepth_loc;
+
 
 		GLint mat_tex_factor_loc;
 		GLint mat_specular_factor_loc;
@@ -68,27 +72,41 @@ namespace renderer {
 		int totalPointLights = 0;
 
 		/**
-		 * @brief Creates the program with the given height and width and initialises all the different shader locations
+		 * @brief Creates the program with the given width and height and initialises all the different shader locations
 		 * 
-		 * @param height 
 		 * @param width 
+		 * @param height 
 		 */
-		void initialise(int height, int width) {
-			auto vs = chicken3421::make_shader("res/shaders/default.vert", GL_VERTEX_SHADER);
-			auto fs = chicken3421::make_shader("res/shaders/default.frag", GL_FRAGMENT_SHADER);
-			program = chicken3421::make_program(vs, fs);
-			chicken3421::delete_shader(vs);
-			chicken3421::delete_shader(fs);
+		void initialise(int width, int height, bool shadowProgram = false) {
+			isShadowProgram = shadowProgram;
+			if (shadowProgram) {
+				auto shadowVert = chicken3421::make_shader("res/shaders/shadow.vert", GL_VERTEX_SHADER);
+				auto shadowFrag = chicken3421::make_shader("res/shaders/shadow.frag", GL_FRAGMENT_SHADER);
+				program = chicken3421::make_program(shadowVert, shadowFrag);
+				chicken3421::delete_shader(shadowVert);
+				chicken3421::delete_shader(shadowFrag);
+				// Gets MVP_Loc
+				light_proj_loc = chicken3421::get_uniform_location(program, "uLightProj");
+				model_loc = chicken3421::get_uniform_location(program, "uModel");
+				return;
+			} else {
+				auto vs = chicken3421::make_shader("res/shaders/default.vert", GL_VERTEX_SHADER);
+				auto fs = chicken3421::make_shader("res/shaders/default.frag", GL_FRAGMENT_SHADER);
+				program = chicken3421::make_program(vs, fs);
+				chicken3421::delete_shader(vs);
+				chicken3421::delete_shader(fs);
+				// Gets MVP_Loc
+				view_proj_loc = chicken3421::get_uniform_location(program, "uViewProj");
+				light_proj_loc = chicken3421::get_uniform_location(program, "uLightProj");
+				model_loc = chicken3421::get_uniform_location(program, "uModel");
+			}
 
 			uTex_loc = chicken3421::get_uniform_location(program, "uTex");
 			uSpec_loc = chicken3421::get_uniform_location(program, "uSpec");
-
-			// Gets MVP_Loc
-			view_proj_loc = chicken3421::get_uniform_location(program, "uViewProj");
-			model_loc = chicken3421::get_uniform_location(program, "uModel");
+			uDepth_loc = chicken3421::get_uniform_location(program, "uDepthMap");
 
 			// Get projection
-			projection = glm::perspective(glm::radians(60.0), (double) height / (double) width, 0.1, 50.0);
+			projection = glm::perspective(glm::radians(60.0), (double) width / (double) height, 0.1, 50.0);
 			// sunlight uniform locations
 			sun_direction_loc = chicken3421::get_uniform_location(program, "uSun.direction");
 			sun_color_loc = chicken3421::get_uniform_location(program, "uSun.color");
@@ -190,6 +208,7 @@ namespace renderer {
 			// Pointing to the different textures
 			glUniform1i(uTex_loc, 0);
 			glUniform1i(uSpec_loc, 1);
+			glUniform1i(uDepth_loc, 2);
 		}
 
 		/**
@@ -250,4 +269,4 @@ namespace renderer {
 	};
 }
 
-#endif // COMP3421_ASS2_RENDERER_HPP
+#endif // COMP3421_ASS3_RENDERER_HPP

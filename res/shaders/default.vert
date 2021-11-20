@@ -23,9 +23,11 @@ layout (location = 2) in vec3 aNormal;
 out vec2 vTexCoord;
 out vec3 vNormal;
 out vec3 vPosition;
+out vec4 fragPosLightSpace;
 
 uniform mat4 uViewProj;
 uniform mat4 uModel;
+uniform mat4 uLightProj;
 
 void main() {
     vTexCoord = aTexCoord;
@@ -35,5 +37,9 @@ void main() {
         vNormal = normalize(uModel * vec4(aNormal, 0)).xyz;
     }
     vPosition = (uModel * aPos).xyz;
+
+    // Shadow shenanigans
+    fragPosLightSpace = uLightProj * vec4(vPosition, 1.0);
+
     gl_Position = uViewProj * uModel * aPos;
 }

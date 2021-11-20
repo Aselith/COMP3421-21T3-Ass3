@@ -25,22 +25,22 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 include(copy_resources)
 copy_resources(${CMAKE_CURRENT_LIST_DIR}/res ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/res)
 
-set(ACTIVITY ass2)
+set(ACTIVITY ass3)
 add_executable(${ACTIVITY})
 target_include_directories(${ACTIVITY} PUBLIC include)
 target_sources(${ACTIVITY}
         ${target}
         PRIVATE
 
-        include/ass2/frustum.hpp
-        include/ass2/utility.hpp
-        include/ass2/static_mesh.hpp
-        include/ass2/scene.hpp
-        include/ass2/player.hpp
-        include/ass2/texture_2d.hpp
-        include/ass2/static_mesh.hpp
-        include/ass2/shapes.hpp
-        include/ass2/renderer.hpp
+        include/ass3/frustum.hpp
+        include/ass3/utility.hpp
+        include/ass3/static_mesh.hpp
+        include/ass3/scene.hpp
+        include/ass3/player.hpp
+        include/ass3/texture_2d.hpp
+        include/ass3/static_mesh.hpp
+        include/ass3/shapes.hpp
+        include/ass3/renderer.hpp
 
         src/frustum.cpp
         src/utility.cpp

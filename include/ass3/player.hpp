@@ -1,5 +1,5 @@
-#ifndef COMP3421_ASS2_PLAYER_HPP
-#define COMP3421_ASS2_PLAYER_HPP
+#ifndef COMP3421_ASS3_PLAYER_HPP
+#define COMP3421_ASS3_PLAYER_HPP
 
 #include <GLFW/glfw3.h>
 
@@ -59,4 +59,4 @@ namespace player {
 
 }
 
-#endif //COMP3421_ASS2_PLAYER_HPP
+#endif //COMP3421_ASS3_PLAYER_HPP

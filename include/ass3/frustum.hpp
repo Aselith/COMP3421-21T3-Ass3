@@ -1,6 +1,6 @@
 
-#ifndef COMP3421_ASS2_FRUSTUM_HPP
-#define COMP3421_ASS2_FRUSTUM_HPP
+#ifndef COMP3421_ASS3_FRUSTUM_HPP
+#define COMP3421_ASS3_FRUSTUM_HPP
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -23,4 +23,4 @@ namespace frustum {
 	bool isBlockInView(glm::vec3 lookingDir, glm::vec3 blockPoint, glm::vec3 playerPos);
 }
 
-#endif //COMP3421_ASS2_FRUSTUM_HPP
+#endif //COMP3421_ASS3_FRUSTUM_HPP

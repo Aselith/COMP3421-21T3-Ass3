@@ -8,19 +8,21 @@
 
 #include <chicken3421/chicken3421.hpp>
 
-#include <ass2/player.hpp>
-#include <ass2/shapes.hpp>
-#include <ass2/texture_2d.hpp>
-#include <ass2/static_mesh.hpp>
-#include <ass2/scene.hpp>
-#include <ass2/utility.hpp>
-#include <ass2/renderer.hpp>
-#include <ass2/frustum.hpp>
+#include <ass3/player.hpp>
+#include <ass3/shapes.hpp>
+#include <ass3/texture_2d.hpp>
+#include <ass3/static_mesh.hpp>
+#include <ass3/scene.hpp>
+#include <ass3/utility.hpp>
+#include <ass3/renderer.hpp>
+#include <ass3/frustum.hpp>
 
 #include <iostream>
 
-const int WIN_HEIGHT = 1280;
-const int WIN_WIDTH = 720;
+const int WIN_HEIGHT = 720;
+const int WIN_WIDTH = 1280;
+const int SHADOW_WIDTH = 8192;
+const int SHADOW_HEIGHT = 8192;
 const float W_PRESS_SPACE = 0.4f;
 
 // 0 -> Basic flat dirt world
@@ -38,7 +40,7 @@ int main() {
 
     // Printing welcome message
     int worldType = 0, renderDistance = 0, worldWidth = 0, frameLimiter = 1;
-    std::cout << "\n\u001B[34mWelcome to a clone of Minecraft, created by z5309206 for COMP3421 ASS2 21T3 UNSW!\n\n\u001B[0m";
+    std::cout << "\n\u001B[34mWelcome to a clone of Minecraft, created by z5309206 for COMP3421 ass3 21T3 UNSW!\n\n\u001B[0m";
     std::cout << "Presets:\n0 -> Basic Super Flat World\n1 -> Wooly World\n2 -> Iron World\n3 -> Classic Sky Block\n4 -> Parkour Course\n";
     std::cout << "Enter your desired preset world [If not recognised, Basic Super Flat World is used]: ";
     std::cin >> worldType;
@@ -58,7 +60,7 @@ int main() {
     std::cout << "Enable frame limiter? [0 for \"No\" | Anything else for \"Yes\"]: ";
     std::cin >> frameLimiter;
 
-    GLFWwindow *window = chicken3421::make_opengl_window(WIN_HEIGHT, WIN_WIDTH, "COMP3421 21T3 Assignment 2 [Minecraft: Clone Simulator]");
+    GLFWwindow *window = chicken3421::make_opengl_window(WIN_WIDTH, WIN_HEIGHT, "COMP3421 21T3 Assignment 2 [Minecraft: Clone Simulator]");
     chicken3421::image_t faviconImage = chicken3421::load_image("./res/textures/favicon.png", false);
     GLFWimage favicon = {faviconImage.width, faviconImage.height, (unsigned char *) faviconImage.data};
     glfwSetWindowIcon(window, 1, &favicon);
@@ -68,6 +70,7 @@ int main() {
 
     std::vector<glm::vec2> listOfPositions;
     std::cout << "\n";
+    // Creating worlds
     switch (worldType) {
         case 1:
             std::cout << "Wooly World selected\n";
@@ -359,9 +362,11 @@ int main() {
 
     // Setting up all the render informations
     renderer::renderer_t renderInfo;
-    renderInfo.initialise(WIN_HEIGHT, WIN_WIDTH);
+    renderInfo.initialise(WIN_WIDTH, WIN_HEIGHT);
     scene::world gameWorld(listOfBlocks, renderDistance, worldWidth, &renderInfo);
 
+    renderer::renderer_t renderInfoShadow;
+    renderInfoShadow.initialise(SHADOW_WIDTH, SHADOW_HEIGHT, true);
 
     // SETTING UP ALL CALLBACKS
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -418,10 +423,6 @@ int main() {
         }
     });
 
-    glfwSetWindowSizeCallback(window, [](GLFWwindow* win, int width, int height) {
-        glViewport(0, 0, width, height);
-    });
-
     glfwSetScrollCallback(window, [](GLFWwindow *win, double xoffset, double yoffset) {
         pointerInformation *info = (pointerInformation *) glfwGetWindowUserPointer(win);
 
@@ -475,45 +476,71 @@ int main() {
     glm::vec3 sunPosition;
     float degrees = 90;
 
-    glUseProgram(renderInfo.program);
-
     gameWorld.updateBlocksToRender(true);
+    
+    // Creating a shadow map
+    GLuint depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
+
+    GLuint depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+    // Attach dept textyre as FBO's depth buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     float totalTime = 0;
     float totalFrames = 0;
 
     glfwShowWindow(window);
     glfwFocusWindow(window);
+
+    float worldSize = gameWorld.getWorldSize();
     // RENDER LOOP
     while (!glfwWindowShouldClose(window)) {
-
+        
         float dt = utility::time_delta();
 
+        // Calculating frames per second
         totalTime += dt;
         totalFrames++;
-
         if (totalTime >= 1) {
             info.frameRate = totalFrames / totalTime;
             totalFrames = 0;
             totalTime = 0;
         }
 
+        // Moving the day cycle around
         if (gameWorld.cutsceneEnabled) {
             degrees += 20.0f * dt;
         } else {
-            degrees += 0.25f * dt;
+            degrees += 0.125f * dt;
         }
-        
         if (degrees >= 360) {
             gameWorld.updateMoonPhase();
             degrees -= 360.0f;
         }
 
         // Changing and updating where the sun will be
-        sunPosition = glm::vec3(gameWorld.getCurrCamera()->pos.x + (renderDistance) * glm::cos(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.y + (renderDistance - 10) * glm::sin(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.z);
-        renderInfo.sun_light_dir = glm::normalize(gameWorld.getCurrCamera()->pos - sunPosition);
+        // sunPosition = glm::vec3(gameWorld.getCurrCamera()->pos.x + (renderDistance) * glm::cos(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.y + (renderDistance - 10) * glm::sin(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.z);
+        glm::vec3 sunPosition = glm::vec3(gameWorld.getCentreOfWorld().x + (renderDistance) * glm::cos(glm::radians(degrees)), gameWorld.getCentreOfWorld().y + (renderDistance - 10) * glm::sin(glm::radians(degrees)), gameWorld.getCentreOfWorld().z);
+        glm::vec3 sunPosOpp = glm::vec3(gameWorld.getCentreOfWorld().x + (renderDistance) * glm::cos(glm::radians(degrees + 180)), gameWorld.getCentreOfWorld().y + (renderDistance - 10) * glm::sin(glm::radians(degrees + 180)), gameWorld.getCentreOfWorld().z);
+
+        renderInfo.sun_light_dir = glm::normalize(sunPosOpp - sunPosition);
         renderInfo.changeSunlight(degrees);
 
+        // Get input or animate cutscene depending on the cutscene status
         if (gameWorld.getCutsceneStatus()) {
             gameWorld.animateCutscene();
         } else {
@@ -521,7 +548,37 @@ int main() {
         }
 
         gameWorld.updateSunPosition(degrees, renderInfo.getSkyColor(degrees), dt);
-        gameWorld.drawWorld(renderInfo);
+    
+        // Rendering the scene with an ortho camera
+        // glCullFace(GL_FRONT); // Peter-panning fix?
+        glUseProgram(renderInfoShadow.program);
+        glm::mat4 lightProjection, lightView, lightSpaceMatrix;
+        float nearPlane = 0.0f, farPlane = 2 * renderDistance;
+        lightProjection = glm::ortho(-worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, -worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, nearPlane, farPlane);
+        lightView = glm::lookAt(sunPosition, gameWorld.getCentreOfWorld(), glm::vec3(0.0, 1.0, 0.0));
+        lightSpaceMatrix = lightProjection * lightView;
+        glUniformMatrix4fv(renderInfoShadow.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        gameWorld.drawWorld(renderInfoShadow, lightSpaceMatrix);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // glCullFace(GL_BACK);
+
+        // Render scene as normal, using the shadow map as the 3rd texture
+        // Change the view port back to normal
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
+        glViewport(0, 0, width, height);
+        glUseProgram(renderInfo.program);
+        auto view_proj = renderInfo.projection * gameWorld.getCurrCamera()->get_view();
+        glUniformMatrix4fv(renderInfo.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
+        glUniformMatrix4fv(renderInfo.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        // Binding the texture over
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        gameWorld.drawWorld(renderInfo, view_proj);
+
         glfwSwapBuffers(window);
         glfwPollEvents();
 

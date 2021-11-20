@@ -8,12 +8,12 @@
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
-#include <ass2/utility.hpp>
-#include <ass2/frustum.hpp>
-#include <ass2/shapes.hpp>
-#include <ass2/player.hpp>
-#include <ass2/texture_2d.hpp>
-#include <ass2/renderer.hpp>
+#include <ass3/utility.hpp>
+#include <ass3/frustum.hpp>
+#include <ass3/shapes.hpp>
+#include <ass3/player.hpp>
+#include <ass3/texture_2d.hpp>
+#include <ass3/renderer.hpp>
 
 #include <math.h>
 #include <vector>
@@ -255,7 +255,7 @@ namespace scene {
             sun.translation.x += (float)renderDistance;
             GLuint auraTextureID = texture_2d::init("./res/textures/blocks/sun_aura.png");
             node_t sunAura = scene::createBlock(0, 0, 0, auraTextureID, defaultSpecular, false, true, false);
-            sunAura.scale = glm::vec3(3.0, 1.2, 1.2);
+            sunAura.scale = glm::vec3(4.0, 1.2, 1.2);
             sun.children.push_back(sunAura);
             // Setting up Moon
             node_t moonOrbit;
@@ -701,7 +701,7 @@ namespace scene {
         void updateSunPosition(float degree, glm::vec3 skyColor, float dt) {
             tickStars(dt);
             centreOfWorld.translation = playerCamera.pos;
-            centreOfWorld.translation.y -= eyeLevel + 6.5f;
+            centreOfWorld.translation.y -= (eyeLevel + 6.5f);
             centreOfWorld.rotation = glm::vec3(0, 0, degree);
             centreOfWorld.children[skySphereIndex].diffuse = skyColor;
         }
@@ -1313,20 +1313,21 @@ namespace scene {
          * 
          * @param renderInfo 
          */
-        void drawWorld(renderer::renderer_t renderInfo) {
+        void drawWorld(renderer::renderer_t renderInfo, glm::mat4 view_proj) {
 
-            glClearColor(0.f, 0.f, 0.2f, 1.f);
+            glClearColor(1.f, 1.f, 1.f, 1.f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             renderInfo.setBasePters(playerCamera.pos);
-
-            auto view_proj = renderInfo.projection * getCurrCamera()->get_view();
+            
 		    glUniformMatrix4fv(renderInfo.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
 
-            drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo, defaultSpecular);
+            if (!renderInfo.isShadowProgram) {
+                drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo, defaultSpecular);
+            }
             drawTerrain(glm::mat4(1.0f), renderInfo);
             
-            if (!shiftMode) {
+            if (!shiftMode && !renderInfo.isShadowProgram) {
                 // Drawing the highlighted block if shift mode is not enabled
                 highlightedBlock.translation = findCursorBlock(false);
                 if (!isCoordOutBoundaries(highlightedBlock.translation.x, highlightedBlock.translation.y, highlightedBlock.translation.z)) {
@@ -1336,10 +1337,20 @@ namespace scene {
 
             // Draw bed if cutscene is occuring, otherwise draw HUD
             if (!cutsceneEnabled) {
-                drawScreen(glm::mat4(1.0f), renderInfo);
+                if (!renderInfo.isShadowProgram) {
+                    drawScreen(glm::mat4(1.0f), renderInfo);
+                }
             } else {
                 drawElement(&bed, glm::mat4(1.0f), renderInfo, defaultSpecular);
             }
+        }
+
+        glm::vec3 getCentreOfWorld() {
+            return {terrain.size() / 2, 0, terrain.at(0).at(0).size() / 2};
+        }
+
+        float getWorldSize() {
+            return terrain.size();
         }
 
         /**
@@ -1358,10 +1369,16 @@ namespace scene {
                 float z = listOfBlocksToRender[i]->translation.z;
                 
                 if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= renderDistance) {
-                    if (frustum::isBlockInView(player::getLookingDirection(getCurrCamera(), 1), glm::vec3(x, y, z), getCurrCamera()->pos)) {
-                        drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
-                    } else if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= 2.0f) {
-                        drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
+                    
+                    if (!(renderInfo.isShadowProgram && listOfBlocksToRender[i]->transparent)) {
+
+                        if (renderInfo.isShadowProgram) {
+                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
+                        } else if (frustum::isBlockInView(player::getLookingDirection(getCurrCamera(), 1), glm::vec3(x, y, z), getCurrCamera()->pos)) {
+                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
+                        } else if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= 2.0f) {
+                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
+                        }
                     }
                 }
             }

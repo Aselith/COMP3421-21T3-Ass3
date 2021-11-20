@@ -1,5 +1,5 @@
-#include <ass2/scene.hpp>
-#include <ass2/texture_2d.hpp>
+#include <ass3/scene.hpp>
+#include <ass3/texture_2d.hpp>
 
 #include <fstream>
 
@@ -16,23 +16,27 @@ namespace scene {
         glUniformMatrix4fv(renderInfo.model_loc, 1, GL_FALSE, glm::value_ptr(model));
 
         if (node->mesh.vbo) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, node->textureID);
-            glActiveTexture(GL_TEXTURE1);
-            if (node->specularID == 4294967295) {
-                glBindTexture(GL_TEXTURE_2D, defaultSpecular);
-            } else {
-                glBindTexture(GL_TEXTURE_2D, node->specularID);
+            
+            if (!renderInfo.isShadowProgram) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, node->textureID);
+                glActiveTexture(GL_TEXTURE1);
+                if (node->specularID == 4294967295) {
+                    glBindTexture(GL_TEXTURE_2D, defaultSpecular);
+                } else {
+                    glBindTexture(GL_TEXTURE_2D, node->specularID);
+                }
+                glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
+                glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
+                glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
+                glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
+                glUniform4fv(renderInfo.mat_specular_loc, 1, glm::value_ptr(node->specular));
+                glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
             }
-            glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
-            glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
-            glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
-            glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
-            glUniform4fv(renderInfo.mat_specular_loc, 1, glm::value_ptr(node->specular));
-            glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
             glBindVertexArray(node->mesh.vao);
+            
             // Ensures to only render the sides that has an air block with that side
-            if (node->ignoreCulling) {
+            if (node->ignoreCulling || renderInfo.isShadowProgram) {
                 glDrawElements(GL_TRIANGLES, node->mesh.indices_count, GL_UNSIGNED_INT, nullptr);
             } else {
                 for (std::vector<int>::size_type index = 0; index < node->culledFaces.size(); index++) {
@@ -56,21 +60,22 @@ namespace scene {
         glUniformMatrix4fv(renderInfo.model_loc, 1, GL_FALSE, glm::value_ptr(model));
 
         if (node->mesh.vbo && !node->air) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, node->textureID);
-            glActiveTexture(GL_TEXTURE1);
-            if (node->specularID == -1) {
-                glBindTexture(GL_TEXTURE_2D, defaultSpecular);
-            } else {
-                glBindTexture(GL_TEXTURE_2D, node->specularID);
+            
+            if (!renderInfo.isShadowProgram) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, node->textureID);
+                glActiveTexture(GL_TEXTURE1);
+                if (node->specularID == -1) {
+                    glBindTexture(GL_TEXTURE_2D, defaultSpecular);
+                } else {
+                    glBindTexture(GL_TEXTURE_2D, node->specularID);
+                }
+                glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
+                glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
+                glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
+                glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
+                glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
             }
-
-            glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
-            glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
-            glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
-            glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
-            glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
-
             glBindVertexArray(node->mesh.vao);
             glDrawElements(GL_TRIANGLES, node->mesh.indices_count, GL_UNSIGNED_INT, nullptr);
             glBindVertexArray(0);

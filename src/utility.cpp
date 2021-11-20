@@ -3,7 +3,7 @@
 #include <iostream>
 #include <chicken3421/chicken3421.hpp>
 
-#include <ass2/utility.hpp>
+#include <ass3/utility.hpp>
 
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>

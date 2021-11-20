@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
-#include <ass2/frustum.hpp>
+#include <ass3/frustum.hpp>
 
 namespace frustum {
 

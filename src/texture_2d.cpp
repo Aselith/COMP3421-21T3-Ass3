@@ -3,7 +3,7 @@
 #include <stb/stb_image.h>
 #include <chicken3421/chicken3421.hpp>
 
-#include <ass2/texture_2d.hpp>
+#include <ass3/texture_2d.hpp>
 
 namespace texture_2d {
     GLuint init(std::string file_name, params_t const &params) {

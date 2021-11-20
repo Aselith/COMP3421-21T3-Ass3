@@ -1,4 +1,4 @@
-#include <ass2/static_mesh.hpp>
+#include <ass3/static_mesh.hpp>
 
 #include <vector>
 #include <iostream>
