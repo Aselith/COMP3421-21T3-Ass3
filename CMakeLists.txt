@@ -32,6 +32,7 @@ target_sources(${ACTIVITY}
         ${target}
         PRIVATE
 
+        include/ass3/renderer.hpp
         include/ass3/frustum.hpp
         include/ass3/utility.hpp
         include/ass3/static_mesh.hpp
@@ -40,8 +41,7 @@ target_sources(${ACTIVITY}
         include/ass3/texture_2d.hpp
         include/ass3/static_mesh.hpp
         include/ass3/shapes.hpp
-        include/ass3/renderer.hpp
-
+        
         src/frustum.cpp
         src/utility.cpp
         src/static_mesh.cpp
@@ -50,6 +50,7 @@ target_sources(${ACTIVITY}
         src/texture_2d.cpp
         src/static_mesh.cpp
         src/shapes.cpp
+        
 
         src/main.cpp
         )

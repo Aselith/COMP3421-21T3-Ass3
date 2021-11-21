@@ -33,14 +33,14 @@ namespace scene {
             glUniform4fv(renderInfo.mat_specular_loc, 1, glm::value_ptr(node->specular));
             glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
 
-            if (!renderInfo.isShadowProgram) {
+            if (strcmp(renderInfo.type.c_str(), "default") == 0) {
                 renderInfo.setInt("isIlluminating", node->illuminating);
             }
 
             glBindVertexArray(node->mesh.vao);
             
             // Ensures to only render the sides that has an air block with that side
-            if (node->ignoreCulling || renderInfo.isShadowProgram) {
+            if (node->ignoreCulling || strcmp(renderInfo.type.c_str(), "shadow") == 0) {
                 glDrawElements(GL_TRIANGLES, node->mesh.indices_count, GL_UNSIGNED_INT, nullptr);
             } else {
                 for (std::vector<int>::size_type index = 0; index < node->culledFaces.size(); index++) {
@@ -78,6 +78,10 @@ namespace scene {
             glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
             glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
             glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
+            
+            if (strcmp(renderInfo.type.c_str(), "default") == 0) {
+                renderInfo.setInt("isIlluminating", node->illuminating);
+            }
 
             glBindVertexArray(node->mesh.vao);
             glDrawElements(GL_TRIANGLES, node->mesh.indices_count, GL_UNSIGNED_INT, nullptr);

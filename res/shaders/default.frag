@@ -106,7 +106,7 @@ void main() {
     if (vNormal.x == 0 && vNormal.y == 0 && vNormal.z == 0) {
         fFragColor = texture(uTex, vTexCoord);
         if (isIlluminating) {
-            fFragColor *= vec4(2.0, 2.0, 2.0, 1.0);
+            fFragColor *= vec4(1.2, 1.2, 1.2, 1.0);
         }
     } else {
         // Calculating diffuse

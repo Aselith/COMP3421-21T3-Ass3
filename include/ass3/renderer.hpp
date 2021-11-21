@@ -7,7 +7,6 @@
 
 #include <chicken3421/chicken3421.hpp>
 
-#include <ass3/scene.hpp>
 #include <iostream>
 #include <string>
 
@@ -32,6 +31,9 @@ namespace renderer {
 	};
 
 	struct renderer_t {
+
+		std::string type = "";
+
 		glm::mat4 projection;
 		glm::vec3 sun_light_dir = glm::normalize(glm::vec3(0) - glm::vec3(0, 10, 0));
 		glm::vec3 sun_light_color = glm::vec3(1.1, 1.1, 1.1);
@@ -76,6 +78,7 @@ namespace renderer {
 		 * 
 		 */
 		void createProgram(std::string programName) {
+			type = programName;
 			chicken3421::delete_program(program);
 			std::string directory = "res/shaders/" + programName;
 			auto vs = chicken3421::make_shader(directory + ".vert", GL_VERTEX_SHADER);
@@ -83,9 +86,6 @@ namespace renderer {
 			program = chicken3421::make_program(vs, fs);
 			chicken3421::delete_shader(vs);
 			chicken3421::delete_shader(fs);
-			if (programName == "shadow") {
-				isShadowProgram = true;
-			}
 		}
 
 		void setUpShadow() {

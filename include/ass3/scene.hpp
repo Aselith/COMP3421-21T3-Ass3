@@ -254,6 +254,7 @@ namespace scene {
             highlightedBlock.scale = glm::vec3(1.001, 1.001, 1.001);
             // Setting up Sun
             node_t sun = scene::createBlock(0, 0, 0, texture_2d::init("./res/textures/blocks/sun.png"), defaultSpecular, false, true, false);
+            sun.illuminating = true;
             sun.scale = glm::vec3(0.001, 4.0, 4.0);
             sun.translation.x += (float)renderDistance;
             GLuint auraTextureID = texture_2d::init("./res/textures/blocks/sun_aura.png");
@@ -264,6 +265,7 @@ namespace scene {
             node_t moonOrbit;
             node_t moon = scene::createBlock(0, 0, 0, moonPhases[(size_t)moonPhase], defaultSpecular, false, false, false);
             moon.scale = glm::vec3(0.001, 2.5, 2.5);
+            moon.illuminating = true;
             moonOrbit.translation.x -= (float)renderDistance;
 
             moonOrbit.children.push_back(moon);
@@ -301,7 +303,7 @@ namespace scene {
                     star.children.push_back(scene::createBlock(0, 0, 0, auraTextureID, defaultSpecular, false, false, false));
                     star.children.back().scale = glm::vec3(2.5f, 2.5f, 2.5f);
                 }
-
+                star.illuminating = true;
                 moonOrbit.children.push_back(star);
             }
 
@@ -341,7 +343,7 @@ namespace scene {
             hotbar.push_back(combineBlockData("mossy_stone_bricks", false, false));
             hotbar.push_back(combineBlockData("cracked_stone_bricks", false, false));
             hotbar.push_back(combineBlockData("glass", true, false));
-            hotbar.push_back(combineBlockData("sea_lantern", false, true, false, glm::vec3(212.0f, 235.0f, 255.0f) * (1.0f / 255.0f), 5.0f));
+            hotbar.push_back(combineBlockData("sea_lantern", false, true, false, glm::vec3(212.0f, 235.0f, 255.0f) * (1.0f / 255.0f), 2.0f));
             hotbar.push_back(combineBlockData("magma", false, true, false, glm::vec3(244.0f, 133.0f, 34.0f) * (1.0f / 255.0f), 1.5f));
             hotbar.push_back(combineBlockData("glowstone", false, true, false, glm::vec3(251.0f, 218.0f, 116.0f) * (1.0f / 255.0f), 1.6f));
             hotbar.push_back(combineBlockData("crying_obsidian", false, true, false, glm::vec3(131.0f, 8.0f, 228.0f) * (1.0f / 255.0f), 2.0f));
@@ -1320,13 +1322,13 @@ namespace scene {
             glClearColor(1.f, 1.f, 1.f, 1.f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            if (!renderInfo.isShadowProgram) {
+            if (strcmp(renderInfo.type.c_str(), "default") == 0) {
                 renderInfo.setBasePters(playerCamera.pos);
                 drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo, defaultSpecular);
             }
             drawTerrain(glm::mat4(1.0f), renderInfo);
             
-            if (!shiftMode && !renderInfo.isShadowProgram) {
+            if (!shiftMode && strcmp(renderInfo.type.c_str(), "default") == 0) {
                 // Drawing the highlighted block if shift mode is not enabled
                 highlightedBlock.translation = findCursorBlock(false);
                 if (!isCoordOutBoundaries(highlightedBlock.translation.x, highlightedBlock.translation.y, highlightedBlock.translation.z)) {
@@ -1335,11 +1337,7 @@ namespace scene {
             }
 
             // Draw bed if cutscene is occuring, otherwise draw HUD
-            if (!cutsceneEnabled) {
-                if (!renderInfo.isShadowProgram) {
-                    drawScreen(glm::mat4(1.0f), renderInfo);
-                }
-            } else {
+            if (cutsceneEnabled) {
                 drawElement(&bed, glm::mat4(1.0f), renderInfo, defaultSpecular);
             }
         }
@@ -1369,9 +1367,9 @@ namespace scene {
                 
                 if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= renderDistance) {
                     
-                    if (!(renderInfo.isShadowProgram && listOfBlocksToRender[i]->transparent)) {
+                    if (!(strcmp(renderInfo.type.c_str(), "shadow") == 0 && listOfBlocksToRender[i]->transparent)) {
 
-                        if (renderInfo.isShadowProgram) {
+                        if (strcmp(renderInfo.type.c_str(), "shadow") == 0) {
                             drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
                         } else if (frustum::isBlockInView(player::getLookingDirection(getCurrCamera(), 1), glm::vec3(x, y, z), getCurrCamera()->pos)) {
                             drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
@@ -1496,6 +1494,7 @@ namespace scene {
             screen.rotation.y = -playerCamera.yaw;
 
             drawElement(&screen, parent_mvp, renderInfo, defaultSpecular);
+            
         }
 
         /**

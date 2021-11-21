@@ -35,7 +35,7 @@ struct pointerInformation {
     renderer::renderer_t *defaultShader;
     float frameRate = 0, lastWPressed = 0;
     float exposureLevel = 1.0f;
-    bool autoExposure = true;
+    bool enableHDR = true;
 };
 
 int main() {
@@ -437,18 +437,18 @@ int main() {
                 break;
             case GLFW_KEY_M:
                  if (info->exposureLevel > 0.0f) {
-                    info->exposureLevel -= 0.01f;
+                    info->exposureLevel -= 0.1f;
                 } else {
                     info->exposureLevel = 0.0f;
                 }
                 break;
             case GLFW_KEY_N:
-                info->exposureLevel += 0.01f;
+                info->exposureLevel += 0.1f;
                 break;
             case GLFW_KEY_COMMA:
                 if (action != GLFW_PRESS) return;
-                info->autoExposure = !info->autoExposure;
-                std::cout << "Auto exposure set to " << info->autoExposure << "\n";
+                info->enableHDR = !info->enableHDR;
+                std::cout << "HDR set to " << info->enableHDR << "\n";
                 break;
         }
     });
@@ -516,7 +516,7 @@ int main() {
     glGenFramebuffers(1, &hdrFBO);
     glGenTextures(1, &colorBufferTexID);
     glBindTexture(GL_TEXTURE_2D, colorBufferTexID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -574,11 +574,6 @@ int main() {
             info.frameRate = totalFrames / totalTime;
             totalFrames = 0;
             totalTime = 0;
-        }
-
-
-        if (info.autoExposure) {
-            info.exposureLevel = (degrees / 360.0f) * 5.0f + 0.01f;
         }
 
         // Moving the day cycle around
@@ -647,10 +642,16 @@ int main() {
         hdrShader.activate();
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, colorBufferTexID);
-        hdrShader.setInt("hdr", true);
+        hdrShader.setInt("hdr", info.enableHDR);
         hdrShader.setFloat("exposure", info.exposureLevel);
         gameWorld.renderQuad();
 
+        if (!gameWorld.cutsceneEnabled) {
+            glClear(GL_DEPTH_BUFFER_BIT);
+            defaultShader.activate();
+            gameWorld.drawScreen(glm::mat4(1.0f), defaultShader);
+        }
+        
 
         glfwSwapBuffers(window);
         glfwPollEvents();
