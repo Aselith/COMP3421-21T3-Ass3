@@ -6,6 +6,7 @@
 - Version 1.0 (14/11/21 - ready for tutor review)
 - Version 1.1 (15/11/21 - release candidate)
 - Version 1.2 (16/11/21 - released to students)
+- _Version 1.3 (21/11/21) - Major Revision of difficulty and marks distribution. Marks and Requirements changes are marked in Italics._
 
 ## Introduction
 
@@ -42,7 +43,7 @@ This project should look very similar to the projects you've been using in your 
 
 ## Tasks and Assessment Criteria
 
-### 1. The Design Pitch (5%)
+### 1. The Design Pitch _(10%)_
 
 Write a design pitch for the project. Note that this pitch does not need to be achieved technically in this assignment, this is a design with a concrete plan for what technology would be needed, not a proof of implementation (see the Subjective Mark for that). No more than 200 words are necessary to complete this component and it can be done in point form if you do not want to write English prose.
 
@@ -56,25 +57,27 @@ Write a design pitch for the project. Note that this pitch does not need to be a
 - Will characters traverse and view it in a particular way?
 - How will it need to be rendered to be useful and visible to a player?
 
-### 2. Advanced Lighting (10%)
+### 2. Advanced Lighting _(15%)_
 
 2a. Blinn-Phong (5%). Implement Blinn Phong Lighting as the algorithm for calculating light intensity in fragments.
 
-2b. HDR (5%). Implement High Dynamic Range Lighting, rendering the scene to a frame buffer that can hold high dynamic range, then tone mapping back to Low Dynamic Range screen RGB colours. Higher marks awarded for more nuanced tone mapping than linear (must be documented). (Completing this component awards marks for 4a. also)
+2b. HDR _(10%)_. Implement High Dynamic Range Lighting, rendering the scene to a frame buffer that can hold high dynamic range, then tone mapping back to Low Dynamic Range screen RGB colours. Higher marks awarded for more nuanced tone mapping than linear (must be documented). (Completing this component awards marks for 4a. also)
 
 
-### 3. Reflections (15%)
+### 3. Reflections _(25%)_
 
-3a. (5%) Environment mapped. Implement at least one object with reflections to a premade cubemap like a skybox.
+3a. _(7.5%)_ Environment mapped. Implement at least one object with reflections to a premade cubemap like a skybox.
 
-3b. (5%) Realtime Cube Map. Implement the ability to create a cube map in realtime and have at least one object that reflects that map. (Completion of this component awards marks for 3a also)
+3b. _(7.5%)_ Realtime Cube Map. Implement the ability to create a cube map in realtime and have at least one object that reflects that map. (Completion of this component awards marks for 3a also)
 
-3c. (5%) Planar Reflections. Implement a Reflective surface using a plane-based render camera. Partial marks awarded for a simple camera that is aimed to look in the reflected view direction. Full marks for a camera with perspective and near plane correction.
+_3c. (5%) In-world Camera/Magic Mirror. Render the scene from a camera to a texture that is then displayed somewhere else in the scene._
 
-### 4. Post Processing (20%)
-4a. (2.5%) Simple colour change. Render the scene to a frame buffer, then make some change to the colours before they are displayed on screen. (Completing 2b. awards marks for this component also)
+3d. (5%) Planar Reflections. Implement a Reflective surface using a plane-based render camera. _Full marks for a camera with perspective and near plane correction. (Completion of this component awards marks for 3c also)_
 
-4b. (2.5%) Use of Kernels. Each pixel in the final display is a combination of multiple pixels from a framebuffer.
+### 4. Post Processing _(25%)_
+4a. _(5%)_ Simple colour change. Render the scene to a frame buffer, then make some change to the colours before they are displayed on screen. (Completing 2b. awards marks for this component also)
+
+4b. _(5%)_ Use of Kernels. Each pixel in the final display is a combination of multiple pixels from a framebuffer.
 
 4c. (5%) Technique using multiple intermediate framebuffers. Use of more than one (necessary) frame buffer for different processes resulting in a final framebuffer.
 
@@ -83,38 +86,25 @@ Write a design pitch for the project. Note that this pitch does not need to be a
 4e. (5%) Temporal Post Processing. Implementation of a technique that makes use of frame buffer(s) from previous frames. Eg: Motion Blur or Temporal Anti-Aliaising. (Completion of this component awards marks for 4a, 4b and 4c also)
 Shadow Mapping (10%)
 
-### 5. Implement a system for casting shadows in your scene.
-
-5a. (5%) Cast shadows from one directional light in the scene. Must use a depth map render from the light's perspective. Can cause artifacts in the scene and still be considered completion of this component.
-
-5b. (5%) Correction of Shadow artifacts/glitches. Possible necessary solutions:
-- Implement a shadow bias to remove Shadow Acne in your scene.
-- Implement a solution to sampling outside the light's frustum.
-- Implement PCF to correct shadow mapping resolution issues.
-
-### 6. Deferred Rendering (15%)
-
-Replace the lighting system in your project with Deferred Rendering. (Completing this with the right features can award marks for 2a, 2b, 4a, 4c, 4d).
-
-6a. (7.5%) Implement a G-buffer, and populate it with a G-pass. If 6b is not implemented, calculate forward rendering using the G-buffer to still have accurate lighting.
-
-6b. (7.5%) Implement Light Volumes. Implement multiple (at least 5) point lights as attenuated shapes that are rendered in a Lighting Pass using the G-buffer.
-
-### 7. Show Me What You Got (15%)
+### 5. Show Me What You Got (15%)
 
 Space to Explore Techniques. If there are any of the techniques in the assignment or course that you want to take further, these marks are here for you to earn credit for the extensions that you choose.
 
+In terms of expectation for marks in this section, a considerable number of these topics are difficult enough that they would constitute all 15% alone, while some other that are marked at varying levels of difficulty might not be considered a full 15% of the assignment.
+
 Examples of possible directions (in no particular order):
-- Add Transparency Blending to a Deferred Renderer (involves adding a Forward Render pass after the Deferred Renderer is finished)
-- Implement a Ray Tracer for Global Illumination. This doesn't have to work in realtime, you can, for example, use it to build scene-wide lightmaps that are later sampled for ambient lighting.
-- Cel Shading. Implement a Lighting algorithm that replicates cel shaded animation (a two-tone lighting effect seen in some of the Zelda games). As a bonus, add in edge detection for comic black lining (the ink drawn Borderlands style effect).
-- Skinned Animation. Build a skeletal animation system that can use a rigged model (made by someone else) that is able to animate correctly in the scene.
-- Particle Effects. Build a particle system able to emit and display particle effects. Show how billboarding and lifetime tracking works.
-- Physical Based Rendering. Implement
+- _Shadow Mapping. Implement a system that allows one or more lights to cast shadows on other parts of the scene. A full implementation with Shadow Bias and PCF correction is considered very difficult and could potentially complete this section._
+- _Deferred Rendering. Replace the lighting system with Deferred Rendering. A system implementing a G-buffer pass with a Light volumes pass is considered very difficult and could potentially complete this section. A Deferred Rendering system might also score marks for 4a, 4c and 4d._
+- _Add Transparency Blending (might involve reserving some scene objects until after the rest of the scene is rendered and even sorting multiple transparent objects). An implementation that can depth sort an arbitrary number of transparent objects and render them in the correct order would be considered reasonably difficult technically._
+- Implement a Ray Tracer for Global Illumination. This doesn't have to work in realtime, you can, for example, use it to build scene-wide lightmaps that are later sampled for ambient lighting. A successful ray tracing algorithm that pre-bakes lightmaps is a very difficult task and might be able to complete this section without being entirely complete.
+- Cel Shading. Implement a Lighting algorithm that replicates cel shaded animation (a two-tone lighting effect seen in some of the Zelda games). As a bonus, add in edge detection for comic black lining (the ink drawn Borderlands style effect). Simple modifications of current algorithms like this could earn partial marks in this section without being too technically difficult. Edge Detection would probably also score marks for 4b and 4d.
+- Skinned Animation. Build a skeletal animation system that can use a rigged model (made by someone else) that is able to animate correctly in the scene. Successful playback of animations using models and animations created by someone else would be potentially quite time consuming and very difficult.
+- Particle Effects. Build a particle system able to emit and display particle effects. Use billboarding and lifetime tracking to be able to control different effects. Depending on the complexity of the effects being shown and the variability of the particles, this could range from reasonably easy (basic particle emission) to incredibly difficult (explosion simulation with particles changing visuals and behaviour during their lifetime).
+- Physically Based Rendering. Implement a physically based rendering system for specific surface information and reflectivity of objects. PBR is a large collection of possible additions to surface detail and lighting calculation that could range from reasonably routine additions to a full blown light and reflection system. It's possible that a full PBR system would be an entire course's worth of work.
 
-**For 1, 2 and 3, If you are able to create code that can be seen to be implementing the criteria, but cannot be proven through visible evidence in the application window, you can receive a maximum of half of the available marks for those criteria.**
+**For 1-5, If you are able to create code that can be seen to be implementing the criteria, but cannot be proven through visible evidence in the application window, you can receive a maximum of half of the available marks for those criteria. The exemption to this are any techniques that are purely efficiency based and do not have discernible visible results.**
 
-### 8. Subjective Mark (10%)
+### 6. Subjective Mark (10%)
 Can you create something that is interesting to the human eye? A great deal of successful games/films evoke a feeling of recognition or nostalgia or use colours and movement in an interesting way to attract attention.
 
 Can you use the technical capability you've shown in the use of advanced screen space effects to convey a feeling or an environment?

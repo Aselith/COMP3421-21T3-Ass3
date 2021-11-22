@@ -27,9 +27,13 @@ I did not complete part 3a. (If you would like your 3a to be marked, you will ne
 
 I did not complete part 3b. (If you would like your 3b to be marked, you will need to replace this line)
 
-### 3c: Planar Reflections. Describe the system used to generate a planar reflection, including any techniques for perspective and/or near plane correction. Include references to code.
+### 3c: In-World Camera/Magic Mirror. Describe how you have placed a camera in a scene that renders to a texture. Show where both of these objects are and how they function to show a different viewpoint of the scene. Include references to code.
 
 I did not complete part 3c. (If you would like your 3c to be marked, you will need to replace this line)
+
+### 3d: Planar Reflections. Describe the system used to generate a planar reflection, including any techniques for perspective and/or near plane correction. Include references to code.
+
+I did not complete part 3d. (If you would like your 3d to be marked, you will need to replace this line)
 
 ## Section 4: Post Processing
 
@@ -53,36 +57,16 @@ I did not complete part 4d. (If you would like your 4d to be marked, you will ne
 
 I did not complete part 4e. (If you would like your 4e to be marked, you will need to replace this line)
 
-## Section 5: Shadow Mapping
+## Section 5: Show Me What You Got. Implement any techniques that are not part of previous criteria for assignments in this course. This is open, so must be documented clearly with code references to show what has been created to add to the visual effects of the scene or objects in it. 
 
-### 5a: Cast Shadows from a light source. Show use of depth render from the light as well as depth testing. Include references to the implementing code.
+I did not complete part 5. (If you would like your 5 to be marked, you will need to replace this line)
 
-I did not complete part 5a. (If you would like your 5a to be marked, you will need to replace this line)
-
-### 5b: Correction of Shadowing Artifacts. Show what techniques are being used to correct artifacts as well as references to code that implements them.
-
-I did not complete part 5b. (If you would like your 5b to be marked, you will need to replace this line)
-
-## Section 6: Deferred Rendering
-
-### 6a: Deferred Lighting. Show the use of a G-buffer to store necessary data for lighting and its use in a lighting pass.
-
-I did not complete part 6a. (If you would like your 6a to be marked, you will need to replace this line)
-
-### 6b: Light Volumes. Show how the lighting pass renders lights as geometry and how this is capable of handling high demand lighting needs with at least 5 lights. Include code references to the lighting pass.
-
-I did not complete part 6b. (If you would like your 6b to be marked, you will need to replace this line)
-
-## Section 7: Show Me What You Got. Implement any techniques that are not part of previous criteria for assignments in this course. This is open, so must be documented clearly with code references to show what has been created to add to the visual effects of the scene or objects in it. 
-
-I did not complete part 7. (If you would like your 7 to be marked, you will need to replace this line)
-
-## Section 8: Subjective Mark
+## Section 6: Subjective Mark
 
 ### How have you fulfilled this requirement?
 
-I did not fulfill this requirement and will not receive marks for Section 8. 
-(If you would like your Section 8 to be marked, you will need to replace these lines)
+I did not fulfill this requirement and will not receive marks for Section 6. 
+(If you would like your Section 6 to be marked, you will need to replace these lines)
 
 ### What is your vision for the scene you are showing?
 
@@ -96,13 +80,13 @@ Write your answer here...
 
 Write your answer here...
 
-## Section 9 (optional): Code Style Feedback
+## Section 7 (optional): Code Style Feedback
 
 ### There are no marks assigned to code style in this assignment. However, if you would like to receive some feedback on your coding style, please point out a section of your code (up to 100 lines) and your tutor will give you some written feedback on the structure and readability of that code.
 
 Write your answer here (lines numbers or function names that you'd like reviewed)
 
-## Section 10 (optional): Use of External Libraries
+## Section 8 (optional): Use of External Libraries
 
 ### What does the library do?
 
