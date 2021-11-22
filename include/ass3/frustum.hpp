@@ -5,7 +5,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#define VIEW_DEGREE 65
+#define VIEW_DEGREE 70
 
 namespace frustum {
 

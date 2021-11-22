@@ -181,8 +181,7 @@ namespace scene {
         const size_t WORLD_HEIGHT = 50;
         const size_t MAX_STARS = 200;
         
-        GLuint quadVAO = 0;
-        GLuint quadVBO;
+        GLuint flyingIcon = texture_2d::init("./res/textures/flying_mode.png");
 
         float eyeLevel = 1.0f;
         bool shiftMode = false;
@@ -231,7 +230,6 @@ namespace scene {
             terrain = {worldWidth , std::vector< std::vector<node_t> > (WORLD_HEIGHT, std::vector<node_t> (worldWidth) ) };
             
             std::cout << "Generating world of size " << worldWidth << "x" << worldWidth << " with render distance " << renderDistance << ". Please standby...\n";
-            GLuint flyingIcon = texture_2d::init("./res/textures/flying_mode.png");
             
             // SETTING UP BED SCENE GRAPH
             bed = createBedPlayer(texture_2d::init("./res/textures/blocks/bed.png"), texture_2d::init("./res/textures/player.png"));
@@ -1317,7 +1315,7 @@ namespace scene {
          * 
          * @param renderInfo 
          */
-        void drawWorld(renderer::renderer_t renderInfo, glm::mat4 view_proj) {
+        void drawWorld(renderer::renderer_t renderInfo, glm::mat4 view_proj, bool onlyIlluminating = false) {
 
             glClearColor(1.f, 1.f, 1.f, 1.f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1326,7 +1324,7 @@ namespace scene {
                 renderInfo.setBasePters(playerCamera.pos);
                 drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo, defaultSpecular);
             }
-            drawTerrain(glm::mat4(1.0f), renderInfo);
+            drawTerrain(glm::mat4(1.0f), renderInfo, onlyIlluminating);
             
             if (!shiftMode && strcmp(renderInfo.type.c_str(), "default") == 0) {
                 // Drawing the highlighted block if shift mode is not enabled
@@ -1358,12 +1356,16 @@ namespace scene {
          * @param parent_mvp 
          * @param renderInfo 
          */
-        void drawTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo) {
+        void drawTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating) {
 
             for (size_t i = 0; i < listOfBlocksToRender.size(); i++) {
                 float x = listOfBlocksToRender[i]->translation.x;
                 float y = listOfBlocksToRender[i]->translation.y;
                 float z = listOfBlocksToRender[i]->translation.z;
+
+                if (!listOfBlocksToRender[i]->illuminating && onlyIlluminating) {
+                    continue;
+                }
                 
                 if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= renderDistance) {
                     
@@ -1512,35 +1514,6 @@ namespace scene {
                     }  
                 }
             }
-        }
-
-        /**
-         * @brief Draws a quadrangle
-         * 
-         */
-        void renderQuad() {
-            if (quadVAO == 0) {
-                float quadVertices[] = {
-                    // positions        // texture Coords
-                    -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-                    -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-                    1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-                    1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-                };
-                // setup plane VAO
-                glGenVertexArrays(1, &quadVAO);
-                glGenBuffers(1, &quadVBO);
-                glBindVertexArray(quadVAO);
-                glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-                glEnableVertexAttribArray(0);
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-                glEnableVertexAttribArray(1);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-            }
-            glBindVertexArray(quadVAO);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-            glBindVertexArray(0);
         }
 
         /**

@@ -18,12 +18,14 @@
 #include <ass3/frustum.hpp>
 
 #include <iostream>
+#include <cmath>
 
 const int WIN_HEIGHT = 720;
 const int WIN_WIDTH = 1280;
 const int SHADOW_WIDTH = 8192;
 const int SHADOW_HEIGHT = 8192;
 const float W_PRESS_SPACE = 0.4f;
+const int BLOOM_INTENSITY = 15;
 
 // 0 -> Basic flat dirt world
 // 1 -> Wooly world
@@ -34,7 +36,7 @@ struct pointerInformation {
     scene::world *gameWorld;
     renderer::renderer_t *defaultShader;
     float frameRate = 0, lastWPressed = 0;
-    float exposureLevel = 1.0f;
+    float exposureLevel = 1.0f, averageIlluminance = 0;
     bool enableHDR = true;
 };
 
@@ -367,12 +369,22 @@ int main() {
     defaultShader.createProgram("default");
     defaultShader.initialise(WIN_WIDTH, WIN_HEIGHT);
     scene::world gameWorld(listOfBlocks, renderDistance, worldWidth, &defaultShader);
-
+    
+    // Creating different shaders
     renderer::renderer_t shadowShader;
     shadowShader.createProgram("shadow");
     shadowShader.setUpShadow();
+    
+    renderer::renderer_t bloomShader;
+    bloomShader.createProgram("bloom");
+    renderer::renderer_t blurShader;
+    blurShader.createProgram("blur");
+    renderer::renderer_t normalShader;
+    normalShader.createProgram("normal");
+
     renderer::renderer_t hdrShader;
-    hdrShader.createProgram("hdr");
+    hdrShader.createProgram("hdrBloom");
+
 
     // SETTING UP ALL CALLBACKS
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -413,6 +425,7 @@ int main() {
                 std::cout << "Pitch: " << info->gameWorld->playerCamera.pitch << "\n";
                 std::cout << "Player Vertical Velocity: " << info->gameWorld->playerCamera.yVelocity << "\n";
                 std::cout << "Exposure levels: " << info->exposureLevel << "\n";
+                std::cout << "Illuminance: " << info->averageIlluminance << "\n";
                 std::cout << "Current frame rate: " << info->frameRate << " frames per second\n\n";
                 break;
             case GLFW_KEY_C:
@@ -512,10 +525,12 @@ int main() {
      */
 
     // HDR
-    GLuint hdrFBO, colorBufferTexID;
+    GLuint hdrFBO, hdrBufferTexID;
     glGenFramebuffers(1, &hdrFBO);
-    glGenTextures(1, &colorBufferTexID);
-    glBindTexture(GL_TEXTURE_2D, colorBufferTexID);
+    glBindFramebuffer(1, hdrFBO);
+
+    glGenTextures(1, &hdrBufferTexID);
+    glBindTexture(GL_TEXTURE_2D, hdrBufferTexID);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -526,14 +541,76 @@ int main() {
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WIN_WIDTH, WIN_HEIGHT);
 
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBufferTexID, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrBufferTexID, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "Framebuffer not complete!\n";
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // END OF HDR CREATION
 
-    // Creating a DEPTH MAP
+    // BLOOM FBO
+    GLuint bloomFBO, bloomTexID;
+    glGenFramebuffers(1, &bloomFBO);
+    glBindFramebuffer(1, bloomFBO);
+
+    glGenTextures(1, &bloomTexID);
+    glBindTexture(GL_TEXTURE_2D, bloomTexID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    GLuint rboDepthBloom;
+    glGenRenderbuffers(1, &rboDepthBloom);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepthBloom);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WIN_WIDTH, WIN_HEIGHT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, bloomFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bloomTexID, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepthBloom);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "Framebuffer not complete!\n";
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // END OF BLOOM CREATION
+
+    // PINGPONG FRAME BUFFERS
+    GLuint pingpongFBO[2], pingpongBuffer[2];
+    glGenFramebuffers(2, pingpongFBO);
+    glGenTextures(2, pingpongBuffer);
+    for (GLuint i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, pingpongBuffer[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongBuffer[i], 0);
+        // also check if framebuffers are complete (no need for depth buffer)
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "Framebuffer not complete!" << std::endl;
+    }
+
+    // PING PONG FRAME BUFFERS FOR ILLUMINANCE
+    GLuint pingpongIlluminanceFBO[2], pingpongIlluminanceBuffer[2];
+    glGenFramebuffers(2, pingpongIlluminanceFBO);
+    glGenTextures(2, pingpongIlluminanceBuffer);
+    for (GLuint i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongIlluminanceFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, pingpongIlluminanceBuffer[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongIlluminanceBuffer[i], 0);
+        // also check if framebuffers are complete (no need for depth buffer)
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "Framebuffer not complete!" << std::endl;
+    }
+
+    // DEPTH MAP
     GLuint depthMapFBO, depthMapTexID;
     glGenFramebuffers(1, &depthMapFBO);
     glGenTextures(1, &depthMapTexID);
@@ -553,10 +630,13 @@ int main() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // END OF DEPTH MAP CREATION
 
-    hdrShader.setInt("hdrBuffer", 0);
+    bloomShader.setInt("bloomTex", 0);
+    blurShader.setInt("screenTexture", 0);
+    normalShader.setInt("uTex", 0);
 
     float totalTime = 0;
     float totalFrames = 0;
+    bool firstFrame = true;
 
     glfwShowWindow(window);
     glfwFocusWindow(window);
@@ -565,6 +645,9 @@ int main() {
     // RENDER LOOP
     while (!glfwWindowShouldClose(window)) {
         
+        int width, height;
+        glfwGetWindowSize(window, &width, &height);
+
         float dt = utility::time_delta();
 
         // Calculating frames per second
@@ -623,28 +706,78 @@ int main() {
 
         // Render scene as normal, using the shadow map as the 3rd texture
         // Change the view port back to normal
-        int width, height;
-        glfwGetWindowSize(window, &width, &height);
-        glViewport(0, 0, width, height);
+        
+        glViewport(0, 0, WIN_WIDTH, WIN_HEIGHT);
 
         defaultShader.activate();
-        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO); // Drawing world to the HDR fbo
         auto view_proj = defaultShader.projection * gameWorld.getCurrCamera()->get_view();
         glUniformMatrix4fv(defaultShader.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
         glUniformMatrix4fv(defaultShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-        // Binding the texture over
+        // Binding the shadow mapping texture over
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, depthMapTexID);
         gameWorld.drawWorld(defaultShader, view_proj);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+
+        // Drawing world
+        glBindFramebuffer(GL_FRAMEBUFFER, bloomFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        hdrShader.activate();
+        defaultShader.activate();
+        gameWorld.drawWorld(defaultShader, view_proj);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[0]);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        bloomShader.activate();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, colorBufferTexID);
+        glBindTexture(GL_TEXTURE_2D, bloomTexID);
+        utility::renderQuad();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+        bool horizontal = true;
+
+        blurShader.activate();
+        for (int i = 0; i < BLOOM_INTENSITY; i++) {
+            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+            blurShader.setInt("horizontal", horizontal);
+            glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!horizontal]);
+
+            utility::renderQuad();
+
+            horizontal = !horizontal;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glViewport((width - WIN_WIDTH) / 2, 0, WIN_WIDTH, WIN_HEIGHT);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        hdrShader.activate();
+        hdrShader.setInt("isBlur", true);
         hdrShader.setInt("hdr", info.enableHDR);
         hdrShader.setFloat("exposure", info.exposureLevel);
-        gameWorld.renderQuad();
+        hdrShader.setInt("scene", 0);
+        hdrShader.setInt("bloomBlur", 1);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, bloomTexID);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!horizontal]);
+        utility::renderQuad();
+
+        if (info.enableHDR) {
+            info.averageIlluminance = utility::findIlluminance(WIN_WIDTH, WIN_HEIGHT);
+            if (utility::roundUp(info.exposureLevel, 2) != utility::roundUp(0.5 / info.averageIlluminance * 2, 2)) {
+                info.exposureLevel = utility::lerp(info.exposureLevel, 0.5 / info.averageIlluminance * 2, 0.05);
+            }
+            
+        }
+        
 
         if (!gameWorld.cutsceneEnabled) {
             glClear(GL_DEPTH_BUFFER_BIT);
@@ -652,6 +785,7 @@ int main() {
             gameWorld.drawScreen(glm::mat4(1.0f), defaultShader);
         }
         
+       
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -662,11 +796,17 @@ int main() {
         // and calculated the distance to the next "ideal" time to render and only slept that long
         // the current way just always sleeps for 16.67ms, so in theory we'd drop frames
         if (frameLimiter != 0) std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(1000.f / 60));
+
+        firstFrame = false;
     }
     
     std::cout << "Terminating program, please standby as everything gets wiped out...\n";
     // deleting the whole window also removes the opengl context, freeing all our memory in one fell swoop.
     defaultShader.deleteProgram();
+    hdrShader.deleteProgram();
+    normalShader.deleteProgram();
+    bloomShader.deleteProgram();
+    blurShader.deleteProgram();
     gameWorld.destroyEverthing();
     chicken3421::delete_opengl_window(window);
 

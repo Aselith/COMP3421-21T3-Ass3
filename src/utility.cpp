@@ -11,6 +11,9 @@
 #include <iostream>
 #include <algorithm>
 
+GLuint quadrangleVAO = 0;
+GLuint quadrangleVBO;
+
 namespace utility {
 
     float calculateDistance(glm::vec3 posA, glm::vec3 posB) {
@@ -24,6 +27,56 @@ namespace utility {
         then = now;
         return dt;
     }
+
+	GLfloat findIlluminance(int screenWidth, int screenHeight) {
+		glm::vec3 luminescene;
+        glm::vec3 totalLuminescene;
+        GLfloat totalSamples = 0;
+        for (GLuint x = 0; x < screenWidth; x += 240) {
+            for (GLuint y = 0; y < screenHeight; y += 240) {
+                totalSamples += 1.5f;
+                glReadPixels(x, y, 1, 1, GL_RGB, GL_FLOAT, &luminescene);
+                totalLuminescene += luminescene;
+            }
+        }
+        totalLuminescene /= totalSamples;
+		return 0.2126 * totalLuminescene.r + 0.7152 * totalLuminescene.g + 0.0722 * totalLuminescene.b;
+	}
+
+	GLfloat lerp(GLfloat posA, GLfloat posB, GLfloat by) {
+		return posA * (1 - by) + posB * by;
+	}
+
+	double roundUp(double value, int decimal_places) {
+		const double multiplier = std::pow(10.0, decimal_places);
+		return std::ceil(value * multiplier) / multiplier;
+	}
+
+	void renderQuad() {
+		if (quadrangleVAO == 0) {
+			float quadVertices[] = {
+				// positions        // texture Coords
+				-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+				-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+				1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+				1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+			};
+			// setup plane VAO
+			glGenVertexArrays(1, &quadrangleVAO);
+			glGenBuffers(1, &quadrangleVBO);
+			glBindVertexArray(quadrangleVAO);
+			glBindBuffer(GL_ARRAY_BUFFER, quadrangleVBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(1);
+			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+		}
+		glBindVertexArray(quadrangleVAO);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glBindVertexArray(0);
+	}
+
 
     float time_now() {
         return (float)glfwGetTime();

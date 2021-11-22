@@ -8,8 +8,11 @@
 #include <glm/ext.hpp>
 
 #include <ass3/static_mesh.hpp>
+#include <ass3/renderer.hpp>
+
 
 namespace utility {
+
     float calculateDistance(glm::vec3 posA, glm::vec3 posB);
 
     /**
@@ -23,6 +26,22 @@ namespace utility {
      * @return A float representing the difference between function calls in seconds.
      */
     float time_delta();
+
+    /**
+     * @brief 
+     * 
+     */
+    GLfloat findIlluminance(int screenWidth, int screenHeight);
+
+    GLfloat lerp(GLfloat posA, GLfloat posB, GLfloat by);
+
+    double roundUp(double value, int decimal_places);
+
+    /**
+	 * @brief Draws a quadrangle
+	 * 
+	 */
+	void renderQuad();
 
     /**
      * @brief Calculates the normals to each triangle in the given mesh_template

@@ -106,7 +106,7 @@ void main() {
     if (vNormal.x == 0 && vNormal.y == 0 && vNormal.z == 0) {
         fFragColor = texture(uTex, vTexCoord);
         if (isIlluminating) {
-            fFragColor *= vec4(1.2, 1.2, 1.2, 1.0);
+            fFragColor *= vec4(1.5, 1.5, 1.5, 1.0);
         }
     } else {
         // Calculating diffuse
@@ -114,7 +114,7 @@ void main() {
         color.rgb = rgbToLinear(color.rgb);
         vec3 ambient = rgbToLinear(uSun.color) * pow(uSun.ambient, 2.2);
         float lightNormal = dot(-uSun.direction, vNormal);
-        vec3 diffuse = rgbToLinear(uSun.color) * rgbToLinear(uMat.diffuse) * max(0, lightNormal);
+        vec3 diffuse = rgbToLinear(uSun.color) * rgbToLinear(uMat.diffuse) * max(0, lightNormal) * 1.1f;
 
         // Calculating specular
         vec4 mat_specular = mix(uMat.specular, texture(uSpec, vTexCoord), uMat.specularFactor);

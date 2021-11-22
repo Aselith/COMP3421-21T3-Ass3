@@ -22,7 +22,7 @@ namespace texture_2d {
         GLenum format = n_channels == 3 ? GL_RGB : GL_RGBA;
         glTexImage2D(GL_TEXTURE_2D, 0, (GLint)format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 
-        // generate mimap if filter_min is a mipmap filter
+        // generate mipmap if filter_min is a mipmap filter
         switch (params.filter_min) {
             case GL_LINEAR_MIPMAP_LINEAR:
             case GL_NEAREST_MIPMAP_LINEAR:
