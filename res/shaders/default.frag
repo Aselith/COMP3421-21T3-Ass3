@@ -91,9 +91,16 @@ vec3 calcPointLight(SpotLight light, vec3 mat_diffuse, vec3 mat_specular) {
     vec3 light_direction = normalize(vPosition - light.position);
     vec3 diffuse = light.diffuse * mat_diffuse * max(0,dot(-light_direction, vNormal));
     vec3 reflected = reflect(light_direction, vNormal);
+    
     vec3 view = normalize(uCameraPos - vPosition);
+   
+    // Adjusted to use Bling Phong Model
+    vec3 lightDir   = normalize(light.position - vPosition);
+    vec3 halfwayDir = normalize(lightDir + view);
+    vec3 specular = light.specular * mat_specular * pow(max(dot(vNormal, halfwayDir), 0), uMat.phongExp);
+    // Old code using original phong model
+    // vec3 specular = light.specular * mat_specular * pow(max(0, dot(reflected, view)), uMat.phongExp);
 
-    vec3 specular = light.specular * mat_specular * pow(max(0, dot(reflected, view)), uMat.phongExp);
 
     float distance = distance(light.position, vPosition);
     float attenuation = 1.0f / (1.0f + (0.2 * distance * distance));
@@ -109,9 +116,12 @@ void main() {
             fFragColor *= vec4(1.5, 1.5, 1.5, 1.0);
         }
     } else {
-        // Calculating diffuse
+        // Calculating diffuse by lighting
         vec4 color = mix(uMat.color, texture(uTex, vTexCoord), uMat.texFactor);
         color.rgb = rgbToLinear(color.rgb);
+
+        
+
         vec3 ambient = rgbToLinear(uSun.color) * pow(uSun.ambient, 2.2);
         float lightNormal = dot(-uSun.direction, vNormal);
         vec3 diffuse = rgbToLinear(uSun.color) * rgbToLinear(uMat.diffuse) * max(0, lightNormal) * 1.1f;

@@ -30,6 +30,7 @@ namespace utility {
 
 	GLfloat findIlluminance(int screenWidth, int screenHeight, GLuint frame) {
 		/*
+		OLD CODE TO FINDING LUMINESCENE, REPLACED WITH MIPMAPPING TECHNIQUE
 		glm::vec3 luminescene;
         glm::vec3 totalLuminescene;
         GLfloat totalSamples = 0;
@@ -50,13 +51,11 @@ namespace utility {
 		GLint w, h;
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
 		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
-
 		glGenerateMipmap(GL_TEXTURE_2D);
 
-		// GLint size = 1.0 + floor(glm::log2(glm::max(w, h, 1)));
+		GLint size = floor(glm::log2(glm::max(w, h, 1)));
 	
-		glGetTexImage(GL_TEXTURE_2D, 10, GL_RGB, GL_FLOAT, &luminescene);
-		// std::cout << luminescene.r << " " << luminescene.g << " " << luminescene.b << "\n";
+		glGetTexImage(GL_TEXTURE_2D, size, GL_RGB, GL_FLOAT, &luminescene);
 
 		return 0.2126 * luminescene.r + 0.7152 * luminescene.g + 0.0722 * luminescene.b;
 	}
@@ -70,14 +69,10 @@ namespace utility {
 		return std::ceil(value * multiplier) / multiplier;
 	}
 
-	void resizeWindow(int viewWidth, int viewHeight, int windowWidth, int windowHeight) {
+	void resizeWindow(int originalWidth, int originalHeight, int newWidth, int newHeight) {
 
-		if (windowHeight > viewHeight) {
-			glViewport(0, 0, windowWidth, windowHeight);
-		} else {
-			glViewport(0, 0, viewWidth, viewHeight);
-		}
-		
+		glViewport(0, 0, newWidth, newHeight);
+
 		return;
 	}
 

@@ -3,9 +3,10 @@
 
 #include <fstream>
 
+
 namespace scene {
 
-    void drawBlock(const node_t *node, glm::mat4 model, renderer::renderer_t renderInfo, GLuint defaultSpecular) {
+    void drawBlock(const node_t *node, glm::mat4 model, renderer::renderer_t renderInfo, bool onlyIlluminating) {
         
         model *= glm::translate(glm::mat4(1.0), node->translation);
         model *= glm::scale(glm::mat4(1.0), node->scale);
@@ -19,13 +20,15 @@ namespace scene {
             
 
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, node->textureID);
-            glActiveTexture(GL_TEXTURE1);
-            if (node->specularID == 0) {
-                glBindTexture(GL_TEXTURE_2D, defaultSpecular);
+            if (onlyIlluminating) {
+                glBindTexture(GL_TEXTURE_2D, node->bloomTexID);
             } else {
-                glBindTexture(GL_TEXTURE_2D, node->specularID);
+                glBindTexture(GL_TEXTURE_2D, node->textureID);
             }
+            
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, node->specularID);
+
             glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
             glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
             glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
@@ -53,7 +56,7 @@ namespace scene {
         }
     }
 
-    void drawElement(const node_t *node, glm::mat4 model, renderer::renderer_t renderInfo, GLuint defaultSpecular) {
+    void drawElement(const node_t *node, glm::mat4 model, renderer::renderer_t renderInfo) {
 
         model *= glm::translate(glm::mat4(1.0), node->translation);
         model *= glm::scale(glm::mat4(1.0), node->scale);
@@ -68,11 +71,7 @@ namespace scene {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, node->textureID);
             glActiveTexture(GL_TEXTURE1);
-            if (node->specularID == 0) {
-                glBindTexture(GL_TEXTURE_2D, defaultSpecular);
-            } else {
-                glBindTexture(GL_TEXTURE_2D, node->specularID);
-            }
+            glBindTexture(GL_TEXTURE_2D, node->specularID);
             glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
             glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
             glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
@@ -90,7 +89,7 @@ namespace scene {
         
         // Recursively draw the celestial bodies that are dependent on this celestial body
         for (auto child : node->children) {
-            scene::drawElement(&child, model, renderInfo, defaultSpecular);
+            scene::drawElement(&child, model, renderInfo);
         }
         
         return;
@@ -104,12 +103,14 @@ namespace scene {
         if (destroyTexture) {
             texture_2d::destroy(node->textureID);
             texture_2d::destroy(node->specularID);
+            texture_2d::destroy(node->bloomTexID);
         }
     }
 
     blockData combineBlockData(std::string stringName, bool transparent, bool illuminating, bool rotatable, glm::vec3 color, float intensity) {
+        
         blockData data;
-        GLuint texID, specID, originalID;
+        GLuint texID, specID, bloomID;
 
         // Checks if the diffuse map exists before initialising it
         std::string diffuseFilePath = "./res/textures/blocks/wool/" + stringName;
@@ -128,23 +129,23 @@ namespace scene {
         if (fileStreamB.good()) {
             specID = texture_2d::init(specularFilePath.c_str());
         } else {
-            specID = 0;
+            specID = texture_2d::init("./res/textures/blocks/default_specular.png");;
         }
         fileStreamB.close();
 
-        // Checks if the specular map exists before initialising it
-        std::string originalFilePath = diffuseFilePath + "_original.png";
+        // Checks if the bloom map exists before initialising it
+        std::string originalFilePath = diffuseFilePath + "_bloom.png";
         std::ifstream fileStreamC(originalFilePath.c_str());
         if (fileStreamC.good()) {
-            originalID = texture_2d::init(originalFilePath.c_str());
+            bloomID = texture_2d::init(originalFilePath.c_str());
         } else {
-            originalID = texID;
+            bloomID = texture_2d::init("./res/textures/blocks/default_bloom.png");;
         }
         fileStreamC.close();
         
         data.texture = texID;
         data.specularMap = specID;
-        data.originalTex = originalID;
+        data.bloomTexID = bloomID;
         data.transparent = transparent;
         data.illuminating = illuminating;
         data.intensity = intensity;
@@ -162,6 +163,9 @@ namespace scene {
         block.air = false;
         block.mesh = shapes::createCube(invertNormals, affectedByLight);
         block.textureID = texID;
+        if (specID == 0) {
+            specID = texture_2d::init("./res/textures/blocks/default_specular.png");;
+        }
         block.specularID = specID;
         block.x = x;
         block.y = y;
@@ -169,6 +173,7 @@ namespace scene {
         block.transparent = transparent;
         block.ignoreCulling = false;
         block.translation = glm::vec3(x, y, z);
+        block.bloomTexID = 0;
 
         return block;
     }
@@ -187,6 +192,7 @@ namespace scene {
         block.transparent = data.transparent;
         block.ignoreCulling = data.rotatable;
         block.translation = glm::vec3(x, y, z);
+        block.bloomTexID = data.bloomTexID;
 
         return block;
     }

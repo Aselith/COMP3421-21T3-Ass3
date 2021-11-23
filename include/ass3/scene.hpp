@@ -19,6 +19,7 @@
 #include <vector>
 #include <iostream>
 
+
 namespace scene {
 
     const float GRAVITY         = -19.6f;
@@ -27,12 +28,14 @@ namespace scene {
     const float PLAYER_RADIUS   = 0.25f; // 0.25
     const float SCREEN_DISTANCE = 0.25f;
 
+
     struct node_t {
         static_mesh::mesh_t mesh;
 
         // Materials
         GLuint textureID = 0;
         GLuint specularID = 0;
+        GLuint bloomTexID = 0;
         glm::vec4 color = glm::vec4(1.0f);
         glm::vec3 ambient = glm::vec3(1.0f);
 		glm::vec3 diffuse = glm::vec3(1.0f);
@@ -55,7 +58,7 @@ namespace scene {
         std::string blockName;
         GLuint texture = 0;
         GLuint specularMap = 0;
-        GLuint originalTex = 0;
+        GLuint bloomTexID = 0;
         glm::vec3 rgb = {0, 0, 0};
         bool transparent = false;
         bool illuminating = false;
@@ -74,7 +77,7 @@ namespace scene {
             startAtMiddle = startFromCentre;
         }
     };
-    
+
     /**
      * @brief Render the given node and its children recursively. Renders selected sides based on
      * the node's culled faces
@@ -82,9 +85,8 @@ namespace scene {
      * @param node 
      * @param model 
      * @param renderInfo 
-     * @param defaultSpecular 
      */
-    void drawBlock(const node_t *node, glm::mat4 model, renderer::renderer_t renderInfo, GLuint defaultSpecular);
+    void drawBlock(const node_t *node, glm::mat4 model, renderer::renderer_t renderInfo, bool onlyIlluminating);
 
     /**
      * @brief Render the given node and its children recursively. Renders all sides regardless
@@ -93,9 +95,8 @@ namespace scene {
      * @param node 
      * @param model 
      * @param renderInfo 
-     * @param defaultSpecular 
      */
-    void drawElement(const node_t *node, glm::mat4 model, renderer::renderer_t renderInfo, GLuint defaultSpecular);
+    void drawElement(const node_t *node, glm::mat4 model, renderer::renderer_t renderInfo);
 
     /**
      * @brief Takes in the parameters and returns blockData with all the information given stored inside
@@ -195,7 +196,6 @@ namespace scene {
         int groundLevel = -99999, aboveLevel = 99999;
         float cutsceneTick = 0;
         float swingCycle = -1.0f, walkCycle = 0.0f;
-        GLuint defaultSpecular = texture_2d::init("./res/textures/blocks/default_specular.png");
         std::vector<GLuint> moonPhases;
         size_t moonPhase = 0;
 
@@ -215,7 +215,7 @@ namespace scene {
         int renderDistance = 0;
         int hotbarIndex = 0;
         size_t handIndex = 0, hotbarHUDIndex = 0, flyingIconIndex = 0, skySphereIndex = 0, moonIndex = 0, instructionIndex = 0;
-        bool flyingMode = false, startSwingHandAnim = false, runningMode = false;
+        bool flyingMode = false, startSwingHandAnim = false, runningMode = false, hideScreen = false;
 
         /**
          * @brief Creates a world with the given render distance and the world width
@@ -250,20 +250,20 @@ namespace scene {
 
             moonPhase = rand() % (int)moonPhases.size();
 
-            highlightedBlock = scene::createBlock(0, 0, 0, texture_2d::init("./res/textures/blocks/highlight.png"), defaultSpecular, false, false, true);
+            highlightedBlock = scene::createBlock(0, 0, 0, texture_2d::init("./res/textures/blocks/highlight.png"), 0, false, false, true);
             highlightedBlock.scale = glm::vec3(1.001, 1.001, 1.001);
             // Setting up Sun
-            node_t sun = scene::createBlock(0, 0, 0, texture_2d::init("./res/textures/blocks/sun.png"), defaultSpecular, false, true, false);
+            node_t sun = scene::createBlock(0, 0, 0, texture_2d::init("./res/textures/blocks/sun.png"), 0, false, true, false);
             sun.illuminating = true;
             sun.scale = glm::vec3(0.001, 4.0, 4.0);
             sun.translation.x += (float)getSkyRadius();
             GLuint auraTextureID = texture_2d::init("./res/textures/blocks/sun_aura.png");
-            node_t sunAura = scene::createBlock(0, 0, 0, auraTextureID, defaultSpecular, false, true, false);
+            node_t sunAura = scene::createBlock(0, 0, 0, auraTextureID, 0, false, true, false);
             sunAura.scale = glm::vec3(4.0, 1.2, 1.2);
             sun.children.push_back(sunAura);
             // Setting up Moon
             node_t moonOrbit;
-            node_t moon = scene::createBlock(0, 0, 0, moonPhases[(size_t)moonPhase], defaultSpecular, false, false, false);
+            node_t moon = scene::createBlock(0, 0, 0, moonPhases[(size_t)moonPhase], 0, false, false, false);
             moon.scale = glm::vec3(0.001, 2.5, 2.5);
             moon.illuminating = true;
             moonOrbit.translation.x -= (float)getSkyRadius();
@@ -290,7 +290,7 @@ namespace scene {
                     starX = (float)sqrt(pow(getSkyRadius(), 2) - pow(starY, 2) - pow(starZ, 2));
                 } while (utility::calculateDistance(glm::vec3(0, 0, 0), glm::vec3(-starX + (float)getSkyRadius(), starY, starZ)) <= 2.0f);
 
-                node_t star = scene::createBlock(0, 0, 0, (rand() % 2) ? starTexBlueID : starTexYellowID, defaultSpecular, false, false, false);
+                node_t star = scene::createBlock(0, 0, 0, (rand() % 2) ? starTexBlueID : starTexYellowID, 0, false, false, false);
                 star.translation = {-starX + (float)getSkyRadius(), starY, starZ};
 
                 star.scale *= (float)((rand() % 6) + 2) / 40.0f;
@@ -300,7 +300,7 @@ namespace scene {
 
                 if (rand() % 10 == 0) {
                     // 1 in 10 chance that the star has an aura around it
-                    star.children.push_back(scene::createBlock(0, 0, 0, auraTextureID, defaultSpecular, false, false, false));
+                    star.children.push_back(scene::createBlock(0, 0, 0, auraTextureID, 0, false, false, false));
                     star.children.back().scale = glm::vec3(2.5f, 2.5f, 2.5f);
                 }
                 star.illuminating = true;
@@ -363,6 +363,7 @@ namespace scene {
             hotbar.push_back(combineBlockData("redstone_ore", false, true, false, glm::vec3(253.0f, 94.0f, 94.0f) * (1.0f / 255.0f), 0.5f));
             hotbar.push_back(combineBlockData("emerald_ore", false, false));
             hotbar.push_back(combineBlockData("diamond_ore", false, false));
+            hotbar.push_back(combineBlockData("slime_block", false, false, true));
             hotbar.push_back(combineBlockData("marccoin_block", false, false, true));
             hotbar.push_back(combineBlockData("bedrock", false, false));
             // Second hotbar
@@ -412,7 +413,7 @@ namespace scene {
             // Filling up the hotbar and positioning it correctly onto the screen
             float xPos = -0.285f;
             for (int i = 0; i < 9; i++) {
-                node_t hudHotbarBlock = scene::createBlock(0, 0, 0, hotbar[1].texture, defaultSpecular, false, false, false);
+                node_t hudHotbarBlock = scene::createBlock(0, 0, 0, hotbar[1].texture, 0, false, false, false);
                 hudHotbarBlock.translation.z += 0.55f;
                 hudHotbarBlock.translation.y += 0.3f;
                 hudHotbarBlock.translation.x = xPos;
@@ -817,7 +818,7 @@ namespace scene {
             } else if (hotbarIndex < 0) {
                 hotbarIndex = (int)hotbar.size() + hotbarIndex;
             }
-            screen.children[handIndex].textureID = hotbar[hotbarIndex].originalTex;
+            screen.children[handIndex].textureID = hotbar[hotbarIndex].texture;
             screen.children[handIndex].specularID = hotbar[hotbarIndex].specularMap;
             // Updating the textures in the hotbar
             int tempIndex = hotbarIndex - 4;
@@ -825,7 +826,7 @@ namespace scene {
                 tempIndex = hotbar.size() + tempIndex;
             }
             for (int i : hotbarTextureIndex) {
-                screen.children[hotbarHUDIndex].children[i].textureID = hotbar[tempIndex].originalTex;
+                screen.children[hotbarHUDIndex].children[i].textureID = hotbar[tempIndex].texture;
                 tempIndex++;
                 tempIndex %= hotbar.size();
             }
@@ -1154,7 +1155,7 @@ namespace scene {
             }
 
             // If the positions differ, then bob the hand
-            if (originalPosition.x != playerCamera.pos.x || originalPosition.z != playerCamera.pos.z || originalPosition.y != playerCamera.pos.y) {
+            if (originalPosition != playerCamera.pos) {
                 bobHand(dt);
                 updateBlocksToRender();
             }
@@ -1171,7 +1172,7 @@ namespace scene {
                 eyeLevel = 1.0f;
                 shiftMode = false;
             }
-            
+            bool landedOnSlime = false;
             // Enacting gravity onto the camera
             if (!flyingMode) {
 
@@ -1185,7 +1186,16 @@ namespace scene {
                 if (playerCamera.pos.y < groundLevel + eyeLevel) {
                     // Prevents player from falling through the ground
                     playerCamera.pos.y = groundLevel + eyeLevel;
-                    playerCamera.yVelocity = 0.0f;
+                    if (strcmp(terrain.at(round(playerCamera.pos.x)).at(groundLevel - 1).at(round(playerCamera.pos.z)).name.c_str(), "slime_block") == 0) {
+                        playerCamera.yVelocity = abs(playerCamera.yVelocity) * 0.75f;
+                        if (playerCamera.yVelocity >= 5.0f && !shiftMode) {
+                            playerCamera.pos.y += playerCamera.yVelocity * dt;
+                            playerCamera.yVelocity += GRAVITY * dt;
+                        }
+                    } else {
+                        playerCamera.yVelocity = 0.0f;
+                    }
+
                 }
             }
 
@@ -1323,26 +1333,30 @@ namespace scene {
          */
         void drawWorld(renderer::renderer_t renderInfo, glm::mat4 view_proj, bool onlyIlluminating = false) {
 
-            glClearColor(1.f, 1.f, 1.f, 1.f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            if (strcmp(renderInfo.type.c_str(), "default") == 0) {
+            if (strcmp(renderInfo.type.c_str(), "default") == 0 && !onlyIlluminating) {
                 renderInfo.setBasePters(playerCamera.pos);
-                drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo, defaultSpecular);
+                drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo);
             }
             drawTerrain(glm::mat4(1.0f), renderInfo, onlyIlluminating);
-            
+
+            if (onlyIlluminating) {
+                // Stop drawing world if all we need is bloom
+                return;
+            }
+
             if (!shiftMode && strcmp(renderInfo.type.c_str(), "default") == 0) {
                 // Drawing the highlighted block if shift mode is not enabled
                 highlightedBlock.translation = findCursorBlock(false);
                 if (!isCoordOutBoundaries(highlightedBlock.translation.x, highlightedBlock.translation.y, highlightedBlock.translation.z)) {
-                    drawElement(&highlightedBlock, glm::mat4(1.0f), renderInfo, defaultSpecular);
+                    drawElement(&highlightedBlock, glm::mat4(1.0f), renderInfo);
                 }
             }
 
             // Draw bed if cutscene is occuring, otherwise draw HUD
             if (cutsceneEnabled) {
-                drawElement(&bed, glm::mat4(1.0f), renderInfo, defaultSpecular);
+                drawElement(&bed, glm::mat4(1.0f), renderInfo);
             }
         }
 
@@ -1368,21 +1382,17 @@ namespace scene {
                 float x = listOfBlocksToRender[i]->translation.x;
                 float y = listOfBlocksToRender[i]->translation.y;
                 float z = listOfBlocksToRender[i]->translation.z;
-
-                if (!listOfBlocksToRender[i]->illuminating && onlyIlluminating) {
-                    continue;
-                }
                 
                 if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= renderDistance) {
                     
                     if (!(strcmp(renderInfo.type.c_str(), "shadow") == 0 && listOfBlocksToRender[i]->transparent)) {
 
                         if (strcmp(renderInfo.type.c_str(), "shadow") == 0) {
-                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
+                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
                         } else if (frustum::isBlockInView(player::getLookingDirection(getCurrCamera(), 1), glm::vec3(x, y, z), getCurrCamera()->pos)) {
-                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
+                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
                         } else if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= 2.0f) {
-                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, defaultSpecular);
+                            drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
                         }
                     }
                 }
@@ -1496,12 +1506,12 @@ namespace scene {
          * @param renderInfo 
          */
         void drawScreen(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo) {
-
+            if (hideScreen) return;
             screen.translation = playerCamera.pos;
             screen.rotation.x = playerCamera.pitch;
             screen.rotation.y = -playerCamera.yaw;
 
-            drawElement(&screen, parent_mvp, renderInfo, defaultSpecular);
+            drawElement(&screen, parent_mvp, renderInfo);
             
         }
 
@@ -1542,7 +1552,6 @@ namespace scene {
             for (auto i : moonPhases) {
                 texture_2d::destroy(i);
             }
-            texture_2d::destroy(defaultSpecular);
         }
     };
 
