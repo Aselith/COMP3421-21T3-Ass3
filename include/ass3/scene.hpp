@@ -55,6 +55,7 @@ namespace scene {
         std::string blockName;
         GLuint texture = 0;
         GLuint specularMap = 0;
+        GLuint originalTex = 0;
         glm::vec3 rgb = {0, 0, 0};
         bool transparent = false;
         bool illuminating = false;
@@ -181,7 +182,7 @@ namespace scene {
         const size_t WORLD_HEIGHT = 50;
         const size_t MAX_STARS = 200;
         
-        GLuint flyingIcon = texture_2d::init("./res/textures/flying_mode.png");
+        
 
         float eyeLevel = 1.0f;
         bool shiftMode = false;
@@ -234,6 +235,7 @@ namespace scene {
             // SETTING UP BED SCENE GRAPH
             bed = createBedPlayer(texture_2d::init("./res/textures/blocks/bed.png"), texture_2d::init("./res/textures/player.png"));
 
+            GLuint flyingIcon = texture_2d::init("./res/textures/flying_mode.png");
 
             // SETTING UP CENTRE OF WORLD SCENE GRAPH
             // Setting up moon phases
@@ -254,7 +256,7 @@ namespace scene {
             node_t sun = scene::createBlock(0, 0, 0, texture_2d::init("./res/textures/blocks/sun.png"), defaultSpecular, false, true, false);
             sun.illuminating = true;
             sun.scale = glm::vec3(0.001, 4.0, 4.0);
-            sun.translation.x += (float)renderDistance;
+            sun.translation.x += (float)getSkyRadius();
             GLuint auraTextureID = texture_2d::init("./res/textures/blocks/sun_aura.png");
             node_t sunAura = scene::createBlock(0, 0, 0, auraTextureID, defaultSpecular, false, true, false);
             sunAura.scale = glm::vec3(4.0, 1.2, 1.2);
@@ -264,7 +266,7 @@ namespace scene {
             node_t moon = scene::createBlock(0, 0, 0, moonPhases[(size_t)moonPhase], defaultSpecular, false, false, false);
             moon.scale = glm::vec3(0.001, 2.5, 2.5);
             moon.illuminating = true;
-            moonOrbit.translation.x -= (float)renderDistance;
+            moonOrbit.translation.x -= (float)getSkyRadius();
 
             moonOrbit.children.push_back(moon);
 
@@ -279,17 +281,17 @@ namespace scene {
                 do {
                     // Randomly generates a Y and Z point, and then finds the X point
                     // via sphere general form
-                    starY = (float)(rand() % renderDistance);
+                    starY = (float)(rand() % getSkyRadius());
                     starY += (float)fmod(rand(), 9.0f) * 0.1f;
                     starY *= (rand() % 2 == 0) ? 1.0f : -1.0f;
-                    starZ = (float)(rand() % renderDistance);
+                    starZ = (float)(rand() % getSkyRadius());
                     starZ += (float)fmod(rand(), 9.0f) * 0.1f;
                     starZ *= (rand() % 2 == 0) ? 1.0f : -1.0f;
-                    starX = (float)sqrt(pow(renderDistance, 2) - pow(starY, 2) - pow(starZ, 2));
-                } while (utility::calculateDistance(glm::vec3(0, 0, 0), glm::vec3(-starX + (float)renderDistance, starY, starZ)) <= 2.0f);
+                    starX = (float)sqrt(pow(getSkyRadius(), 2) - pow(starY, 2) - pow(starZ, 2));
+                } while (utility::calculateDistance(glm::vec3(0, 0, 0), glm::vec3(-starX + (float)getSkyRadius(), starY, starZ)) <= 2.0f);
 
                 node_t star = scene::createBlock(0, 0, 0, (rand() % 2) ? starTexBlueID : starTexYellowID, defaultSpecular, false, false, false);
-                star.translation = {-starX + (float)renderDistance, starY, starZ};
+                star.translation = {-starX + (float)getSkyRadius(), starY, starZ};
 
                 star.scale *= (float)((rand() % 6) + 2) / 40.0f;
                 star.rotation.x += (float)(rand() % 10) / 10.0f;
@@ -305,7 +307,7 @@ namespace scene {
                 moonOrbit.children.push_back(star);
             }
 
-            node_t skySphere = createSkySphere(0, (float)renderDistance + 1.0f, 256);
+            node_t skySphere = createSkySphere(0, (float)getSkyRadius() + 1.0f, 256);
             // skySphere.texture = texture_2d::init("./res/textures/sky.png");
             skySphere.rotation = glm::vec3(0, 0, 90);
             skySphere.diffuse = glm::vec4((float)173/255, (float)216/255, (float)230/255, 1.0f);
@@ -547,6 +549,10 @@ namespace scene {
             moonPhase++;
             moonPhase %= moonPhases.size();
             centreOfWorld.children[(size_t)moonIndex].children[0].textureID = moonPhases[moonPhase];
+        }
+
+        int getSkyRadius() {
+            return (renderDistance > 30) ? renderDistance : 30;
         }
 
         /**
@@ -811,7 +817,7 @@ namespace scene {
             } else if (hotbarIndex < 0) {
                 hotbarIndex = (int)hotbar.size() + hotbarIndex;
             }
-            screen.children[handIndex].textureID = hotbar[hotbarIndex].texture;
+            screen.children[handIndex].textureID = hotbar[hotbarIndex].originalTex;
             screen.children[handIndex].specularID = hotbar[hotbarIndex].specularMap;
             // Updating the textures in the hotbar
             int tempIndex = hotbarIndex - 4;
@@ -819,7 +825,7 @@ namespace scene {
                 tempIndex = hotbar.size() + tempIndex;
             }
             for (int i : hotbarTextureIndex) {
-                screen.children[hotbarHUDIndex].children[i].textureID = hotbar[tempIndex].texture;
+                screen.children[hotbarHUDIndex].children[i].textureID = hotbar[tempIndex].originalTex;
                 tempIndex++;
                 tempIndex %= hotbar.size();
             }

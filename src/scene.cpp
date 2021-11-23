@@ -21,7 +21,7 @@ namespace scene {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, node->textureID);
             glActiveTexture(GL_TEXTURE1);
-            if (node->specularID == 4294967295) {
+            if (node->specularID == 0) {
                 glBindTexture(GL_TEXTURE_2D, defaultSpecular);
             } else {
                 glBindTexture(GL_TEXTURE_2D, node->specularID);
@@ -68,7 +68,7 @@ namespace scene {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, node->textureID);
             glActiveTexture(GL_TEXTURE1);
-            if (node->specularID == 4294967295) {
+            if (node->specularID == 0) {
                 glBindTexture(GL_TEXTURE_2D, defaultSpecular);
             } else {
                 glBindTexture(GL_TEXTURE_2D, node->specularID);
@@ -109,8 +109,7 @@ namespace scene {
 
     blockData combineBlockData(std::string stringName, bool transparent, bool illuminating, bool rotatable, glm::vec3 color, float intensity) {
         blockData data;
-        GLuint texID;
-        GLuint specID;
+        GLuint texID, specID, originalID;
 
         // Checks if the diffuse map exists before initialising it
         std::string diffuseFilePath = "./res/textures/blocks/wool/" + stringName;
@@ -129,12 +128,23 @@ namespace scene {
         if (fileStreamB.good()) {
             specID = texture_2d::init(specularFilePath.c_str());
         } else {
-            specID = 4294967295;
+            specID = 0;
         }
         fileStreamB.close();
+
+        // Checks if the specular map exists before initialising it
+        std::string originalFilePath = diffuseFilePath + "_original.png";
+        std::ifstream fileStreamC(originalFilePath.c_str());
+        if (fileStreamC.good()) {
+            originalID = texture_2d::init(originalFilePath.c_str());
+        } else {
+            originalID = texID;
+        }
+        fileStreamC.close();
         
         data.texture = texID;
         data.specularMap = specID;
+        data.originalTex = originalID;
         data.transparent = transparent;
         data.illuminating = illuminating;
         data.intensity = intensity;

@@ -7,7 +7,6 @@ uniform sampler2D scene;
 uniform sampler2D bloomBlur;
 
 uniform bool hdr;
-uniform bool isBlur;
 uniform float exposure;
 
 void main() {
@@ -16,8 +15,10 @@ void main() {
     vec3 hdrColor = texture(scene, vTexCoord).rgb;      
     vec3 bloomColor = texture(bloomBlur, vTexCoord).rgb;
 
-    if (isBlur) {
+    if (hdr) {
         hdrColor += bloomColor;
+    } else {
+        hdrColor += bloomColor / 2;
     }
     
     vec3 result = hdrColor;

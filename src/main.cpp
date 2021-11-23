@@ -495,7 +495,6 @@ int main() {
         }
     });
 
-
     auto xPos = gameWorld.terrain.size() / 2;
     auto zPos = gameWorld.terrain[0][0].size() / 2;
     gameWorld.playerCamera = player::createCamera(glm::vec3(xPos, 5, zPos), glm::vec3(xPos, -10.0f, zPos));
@@ -549,13 +548,13 @@ int main() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // END OF HDR CREATION
 
-    // BLOOM FBO
-    GLuint bloomFBO, bloomTexID;
-    glGenFramebuffers(1, &bloomFBO);
-    glBindFramebuffer(1, bloomFBO);
+    // REGULAR UNTAMPERED SCENE
+    GLuint untamperedFBO, untamperedTexID;
+    glGenFramebuffers(1, &untamperedFBO);
+    glBindFramebuffer(1, untamperedFBO);
 
-    glGenTextures(1, &bloomTexID);
-    glBindTexture(GL_TEXTURE_2D, bloomTexID);
+    glGenTextures(1, &untamperedTexID);
+    glBindTexture(GL_TEXTURE_2D, untamperedTexID);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -565,8 +564,8 @@ int main() {
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepthBloom);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WIN_WIDTH, WIN_HEIGHT);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, bloomFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bloomTexID, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, untamperedFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, untamperedTexID, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepthBloom);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "Framebuffer not complete!\n";
@@ -584,30 +583,30 @@ int main() {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongBuffer[i], 0);
-        // also check if framebuffers are complete (no need for depth buffer)
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-            std::cout << "Framebuffer not complete!" << std::endl;
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cout << "Framebuffer not complete!\n";
+        }
+            
     }
 
     // PING PONG FRAME BUFFERS FOR ILLUMINANCE
-    GLuint pingpongIlluminanceFBO[2], pingpongIlluminanceBuffer[2];
-    glGenFramebuffers(2, pingpongIlluminanceFBO);
-    glGenTextures(2, pingpongIlluminanceBuffer);
-    for (GLuint i = 0; i < 2; i++) {
-        glBindFramebuffer(GL_FRAMEBUFFER, pingpongIlluminanceFBO[i]);
-        glBindTexture(GL_TEXTURE_2D, pingpongIlluminanceBuffer[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongIlluminanceBuffer[i], 0);
-        // also check if framebuffers are complete (no need for depth buffer)
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-            std::cout << "Framebuffer not complete!" << std::endl;
+    GLuint finalFrameFBO, finalFrameColor;
+    glGenFramebuffers(1, &finalFrameFBO);
+    glGenTextures(1, &finalFrameColor);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, finalFrameFBO);
+    glBindTexture(GL_TEXTURE_2D, finalFrameColor);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, finalFrameColor, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "Framebuffer not complete!\n";
     }
 
     // DEPTH MAP
@@ -636,12 +635,12 @@ int main() {
 
     float totalTime = 0;
     float totalFrames = 0;
-    bool firstFrame = true;
 
     glfwShowWindow(window);
     glfwFocusWindow(window);
 
     float worldSize = gameWorld.getWorldSize();
+    glm::vec3 centreOfWorld = gameWorld.getCentreOfWorld();
     // RENDER LOOP
     while (!glfwWindowShouldClose(window)) {
         
@@ -672,8 +671,8 @@ int main() {
 
         // Changing and updating where the sun will be
         // sunPosition = glm::vec3(gameWorld.getCurrCamera()->pos.x + (renderDistance) * glm::cos(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.y + (renderDistance - 10) * glm::sin(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.z);
-        glm::vec3 sunPosition = glm::vec3(gameWorld.getCentreOfWorld().x + (renderDistance) * glm::cos(glm::radians(degrees)), gameWorld.getCentreOfWorld().y + (renderDistance - 10) * glm::sin(glm::radians(degrees)), gameWorld.getCentreOfWorld().z);
-        glm::vec3 sunPosOpp = glm::vec3(gameWorld.getCentreOfWorld().x + (renderDistance) * glm::cos(glm::radians(degrees + 180)), gameWorld.getCentreOfWorld().y + (renderDistance - 10) * glm::sin(glm::radians(degrees + 180)), gameWorld.getCentreOfWorld().z);
+        glm::vec3 sunPosition = glm::vec3(centreOfWorld.x + (30) * glm::cos(glm::radians(degrees)), centreOfWorld.y + (30 - 10) * glm::sin(glm::radians(degrees)), centreOfWorld.z);
+        glm::vec3 sunPosOpp = glm::vec3(centreOfWorld.x + (30) * glm::cos(glm::radians(degrees + 180)), centreOfWorld.y + (30 - 10) * glm::sin(glm::radians(degrees + 180)), centreOfWorld.z);
 
         defaultShader.sun_light_dir = glm::normalize(sunPosOpp - sunPosition);
         defaultShader.changeSunlight(degrees);
@@ -720,25 +719,24 @@ int main() {
         gameWorld.drawWorld(defaultShader, view_proj);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
-        // Drawing world
-        glBindFramebuffer(GL_FRAMEBUFFER, bloomFBO);
+        // Drawing world without any filters
+        glBindFramebuffer(GL_FRAMEBUFFER, untamperedFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         defaultShader.activate();
         gameWorld.drawWorld(defaultShader, view_proj);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+        // Drawing the untampered scene to pingpongFBO with bloom shader
         glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[0]);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         bloomShader.activate();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, bloomTexID);
+        glBindTexture(GL_TEXTURE_2D, untamperedTexID);
         utility::renderQuad();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
+        // Blurs the scene in pingpong buffer
         bool horizontal = true;
-
         blurShader.activate();
         for (int i = 0; i < BLOOM_INTENSITY; i++) {
             glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
@@ -753,39 +751,44 @@ int main() {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glViewport((width - WIN_WIDTH) / 2, 0, WIN_WIDTH, WIN_HEIGHT);
+        utility::resizeWindow(WIN_WIDTH, WIN_HEIGHT, width, height);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // Drawing scene as usual with HDR + Bloom
+        glBindFramebuffer(GL_FRAMEBUFFER, finalFrameFBO);
         glClear(GL_COLOR_BUFFER_BIT);
-
         hdrShader.activate();
-        hdrShader.setInt("isBlur", true);
         hdrShader.setInt("hdr", info.enableHDR);
         hdrShader.setFloat("exposure", info.exposureLevel);
         hdrShader.setInt("scene", 0);
         hdrShader.setInt("bloomBlur", 1);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, bloomTexID);
+        glBindTexture(GL_TEXTURE_2D, untamperedTexID);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!horizontal]);
         utility::renderQuad();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        
+        glClear(GL_COLOR_BUFFER_BIT);
+        normalShader.activate();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, finalFrameColor);
+        utility::renderQuad();
 
         if (info.enableHDR) {
-            info.averageIlluminance = utility::findIlluminance(WIN_WIDTH, WIN_HEIGHT);
-            if (utility::roundUp(info.exposureLevel, 2) != utility::roundUp(0.5 / info.averageIlluminance * 2, 2)) {
-                info.exposureLevel = utility::lerp(info.exposureLevel, 0.5 / info.averageIlluminance * 2, 0.05);
+            info.averageIlluminance = utility::findIlluminance(WIN_WIDTH, WIN_HEIGHT, finalFrameColor);
+            auto correctExposure = 0.5 / info.averageIlluminance * 1.8;
+            if (utility::roundUp(info.exposureLevel, 2) != utility::roundUp(correctExposure, 2)) {
+                info.exposureLevel = utility::lerp(info.exposureLevel, correctExposure, 0.05f);
             }
-            
         }
-        
 
+        glActiveTexture(GL_TEXTURE0);
         if (!gameWorld.cutsceneEnabled) {
             glClear(GL_DEPTH_BUFFER_BIT);
             defaultShader.activate();
             gameWorld.drawScreen(glm::mat4(1.0f), defaultShader);
         }
-        
-       
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -796,8 +799,6 @@ int main() {
         // and calculated the distance to the next "ideal" time to render and only slept that long
         // the current way just always sleeps for 16.67ms, so in theory we'd drop frames
         if (frameLimiter != 0) std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(1000.f / 60));
-
-        firstFrame = false;
     }
     
     std::cout << "Terminating program, please standby as everything gets wiped out...\n";

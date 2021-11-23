@@ -28,7 +28,8 @@ namespace utility {
         return dt;
     }
 
-	GLfloat findIlluminance(int screenWidth, int screenHeight) {
+	GLfloat findIlluminance(int screenWidth, int screenHeight, GLuint frame) {
+		/*
 		glm::vec3 luminescene;
         glm::vec3 totalLuminescene;
         GLfloat totalSamples = 0;
@@ -41,6 +42,23 @@ namespace utility {
         }
         totalLuminescene /= totalSamples;
 		return 0.2126 * totalLuminescene.r + 0.7152 * totalLuminescene.g + 0.0722 * totalLuminescene.b;
+		*/
+		glm::vec3 luminescene;
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, frame); 
+
+		GLint w, h;
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		// GLint size = 1.0 + floor(glm::log2(glm::max(w, h, 1)));
+	
+		glGetTexImage(GL_TEXTURE_2D, 10, GL_RGB, GL_FLOAT, &luminescene);
+		// std::cout << luminescene.r << " " << luminescene.g << " " << luminescene.b << "\n";
+
+		return 0.2126 * luminescene.r + 0.7152 * luminescene.g + 0.0722 * luminescene.b;
 	}
 
 	GLfloat lerp(GLfloat posA, GLfloat posB, GLfloat by) {
@@ -50,6 +68,17 @@ namespace utility {
 	double roundUp(double value, int decimal_places) {
 		const double multiplier = std::pow(10.0, decimal_places);
 		return std::ceil(value * multiplier) / multiplier;
+	}
+
+	void resizeWindow(int viewWidth, int viewHeight, int windowWidth, int windowHeight) {
+
+		if (windowHeight > viewHeight) {
+			glViewport(0, 0, windowWidth, windowHeight);
+		} else {
+			glViewport(0, 0, viewWidth, viewHeight);
+		}
+		
+		return;
 	}
 
 	void renderQuad() {

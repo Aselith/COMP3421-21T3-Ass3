@@ -31,11 +31,13 @@ namespace utility {
      * @brief 
      * 
      */
-    GLfloat findIlluminance(int screenWidth, int screenHeight);
+    GLfloat findIlluminance(int screenWidth, int screenHeight, GLuint frame);
 
     GLfloat lerp(GLfloat posA, GLfloat posB, GLfloat by);
 
     double roundUp(double value, int decimal_places);
+
+    void resizeWindow(int viewWidth, int viewHeight, int windowWidth, int windowHeight);
 
     /**
 	 * @brief Draws a quadrangle
