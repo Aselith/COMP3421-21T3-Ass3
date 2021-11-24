@@ -132,6 +132,64 @@ namespace shapes {
     }
 
 
+    static_mesh::mesh_t createSkybox() {
+        GLfloat skyboxVertices[] = {
+            -1.0f,  1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,
+             1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+             1.0f, -1.0f, -1.0f,
+             1.0f, -1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+            -1.0f,  1.0f, -1.0f,
+             1.0f,  1.0f, -1.0f,
+             1.0f,  1.0f,  1.0f,
+             1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+             1.0f, -1.0f, -1.0f,
+             1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+             1.0f, -1.0f,  1.0f
+        };
+
+        static_mesh::mesh_t finalProduct;
+
+        glGenVertexArrays(1, &finalProduct.vao);
+        glGenBuffers(1, &finalProduct.vbo);
+        glBindVertexArray(finalProduct.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, finalProduct.vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+        return finalProduct;
+    }
+
 
     static_mesh::mesh_t createFlatSquare(bool invert) {
         static_mesh::mesh_template_t square;
@@ -170,46 +228,6 @@ namespace shapes {
         }
         return static_mesh::init(square);
     }
-
-
-    static_mesh::mesh_t createSphere(float radius, unsigned int tessellation) {
-		static_mesh::mesh_template_t sphere;
-
-		float ang_inc = 2.0f * (float)M_PI / (float)tessellation;
-		unsigned int stacks = tessellation / 2;
-		unsigned int start_angle_i = 3 * tessellation / 4;
-		for (unsigned int i = start_angle_i; i <= start_angle_i + stacks; ++i) {
-			float alpha = ang_inc * (float)i;
-			float y = radius * std::sin(alpha);
-			float slice_radius = radius * std::cos(alpha);
-			for (unsigned int j = 0; j <= tessellation; ++j) {
-				float beta = ang_inc * (float)j;
-				float z = slice_radius * std::cos(beta);
-				float x = slice_radius * std::sin(beta);
-				sphere.positions.emplace_back(x, y, z);
-				sphere.tex_coords.emplace_back((float)j * 1.0f / (float)tessellation,
-				                               (float)(i - start_angle_i) * 2.0f / (float)tessellation);
-			}
-		}
-		// create the indices
-		for (unsigned int i = 1; i <= tessellation / 2; ++i) {
-			unsigned int prev = (1u + tessellation) * (i - 1);
-			unsigned int curr = (1u + tessellation) * i;
-			for (unsigned int j = 0; j < tessellation; ++j) {
-				sphere.indices.push_back(curr + j);
-				sphere.indices.push_back(prev + j);
-				sphere.indices.push_back(prev + j + 1);
-				sphere.indices.push_back(prev + j + 1);
-				sphere.indices.push_back(curr + j + 1);
-				sphere.indices.push_back(curr + j);
-			}
-		}
-
-        utility::calcVertNormals(sphere);
-        utility::invertShape(sphere);
-
-		return static_mesh::init(sphere);
-	}
 
     static_mesh::mesh_t createBed() {
         static_mesh::mesh_template_t bed;

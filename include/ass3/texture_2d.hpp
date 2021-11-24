@@ -22,6 +22,8 @@ namespace texture_2d {
      */
     GLuint init(std::string fileName, params_t const &params = params_t{GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST});
 
+    GLuint loadCubemap(std::string filePath);
+
     /**
      * @brief Destroys the given texture
      * 

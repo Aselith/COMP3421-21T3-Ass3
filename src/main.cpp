@@ -41,6 +41,37 @@ struct pointerInformation {
     GLint hdrType = 1;
 };
 
+struct dayNightTextureSystem {
+    private:
+    GLuint day = texture_2d::loadCubemap("./res/textures/skybox/day");
+    GLuint sunset = texture_2d::loadCubemap("./res/textures/skybox/sunset");
+    GLuint night = texture_2d::loadCubemap("./res/textures/skybox/night");
+    GLuint sunrise = texture_2d::loadCubemap("./res/textures/skybox/sunrise");
+    public:
+
+    GLuint prevTex, currTex;
+
+    float updatePrevCurr(float dayProgress) {
+        dayProgress = fmod(dayProgress, 1.0f);
+        if (dayProgress >= 0.0f && dayProgress < 0.25f) {
+            prevTex = sunrise;
+            currTex = day;
+        } else if (dayProgress >= 0.25f && dayProgress < 0.5f) {
+            prevTex = day;
+            currTex = sunset;
+        } else if (dayProgress >= 0.5f && dayProgress < 0.75f) {
+            prevTex = sunset;
+            currTex = night;
+        } else{
+            prevTex = night;
+            currTex = sunrise;
+        }
+
+        return fmod(dayProgress, 0.25f) / 0.25f;
+    }
+
+};
+
 int main() {
 
     // Printing welcome message
@@ -384,6 +415,10 @@ int main() {
     renderer::renderer_t hdrShader;
     hdrShader.createProgram("hdrBloom");
 
+    renderer::renderer_t skyboxShader;
+    skyboxShader.createProgram("skybox");
+
+    dayNightTextureSystem dayNightCalculator;
 
     // SETTING UP ALL CALLBACKS
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -543,6 +578,7 @@ int main() {
      */
 
     // HDR
+    /*
     GLuint hdrFBO, hdrBufferTexID;
     glGenFramebuffers(1, &hdrFBO);
     glBindFramebuffer(1, hdrFBO);
@@ -565,6 +601,7 @@ int main() {
         std::cout << "Framebuffer not complete!\n";
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    */
     // END OF HDR CREATION
 
     // REGULAR UNTAMPERED SCENE
@@ -676,8 +713,9 @@ int main() {
     blurShader.setInt("screenTexture", 0);
     normalShader.setInt("uTex", 0);
 
-    float totalTime = 0;
-    float totalFrames = 0;
+    float totalTime = 0.0f;
+    float totalFrames = 0.0f;
+    float blendValue = 0.0f;
 
     glfwShowWindow(window);
     glfwFocusWindow(window);
@@ -728,7 +766,7 @@ int main() {
             gameWorld.updatePlayerPositions(window, dt, &defaultShader);
         }
 
-        gameWorld.updateSunPosition(degrees, defaultShader.getSkyColor(degrees), dt);
+        gameWorld.updateSunPosition(degrees, dt);
     
         // Rendering the scene with an ortho camera
         shadowShader.activate();
@@ -753,21 +791,37 @@ int main() {
         glViewport(0, 0, WIN_WIDTH, WIN_HEIGHT);
 
         defaultShader.activate();
-        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO); // Drawing world to the HDR fbo
+
         auto view_proj = defaultShader.projection * gameWorld.getCurrCamera()->get_view();
         glUniformMatrix4fv(defaultShader.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
         glUniformMatrix4fv(defaultShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-        // Binding the shadow mapping texture over
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, depthMapTexID);
-        gameWorld.drawWorld(defaultShader);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Drawing world without any filters
         glBindFramebuffer(GL_FRAMEBUFFER, untamperedFBO);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        defaultShader.activate();
-        gameWorld.drawWorld(defaultShader, false);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, depthMapTexID);
+            defaultShader.activate();
+            gameWorld.drawWorld(defaultShader, false);
+            // Drawing skybox
+            glDepthFunc(GL_LEQUAL);
+            blendValue = dayNightCalculator.updatePrevCurr(gameWorld.worldTime);
+            skyboxShader.activate();
+            auto skyBoxView = glm::mat4(glm::mat3(gameWorld.getCurrCamera()->get_view()));
+            skyboxShader.setMat4("view", skyBoxView);
+            skyboxShader.setMat4("projection", defaultShader.projection);
+            glBindVertexArray(gameWorld.skyBox.mesh.vao);
+            skyboxShader.setInt("prevSkybox", 0);
+            skyboxShader.setInt("currSkybox", 1);
+            skyboxShader.setFloat("blendFactor", blendValue);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, dayNightCalculator.prevTex);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, dayNightCalculator.currTex);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glBindVertexArray(0);
+            glDepthFunc(GL_LESS);
+
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Drawing the world again but with the bloom on only

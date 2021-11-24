@@ -23,15 +23,7 @@ namespace shapes {
      */
     static_mesh::mesh_t createFlatSquare(bool invert);
 
-    /**
-     * @brief Create a static mesh of a sphere with the given radius and tesselation
-     * The code used here is code found from the tutorial
-     * 
-     * @param radius 
-     * @param tessellation 
-     * @return static_mesh::mesh_t 
-     */
-    static_mesh::mesh_t createSphere(float radius, unsigned int tessellation);
+    static_mesh::mesh_t createSkybox();
 
     /**
      * @brief Create a mesh for a Minecraft bed

@@ -41,7 +41,6 @@ namespace renderer {
 
 		glm::vec3 sunriseColor = glm::vec3((float)247/255, (float)205/255, (float)93/255);
 		glm::vec3 dayColor = glm::vec3(1, 1, 1);
-		glm::vec3 dayBlueColor = glm::vec3((float)135/255, (float)206/255, (float)235/255);
 		glm::vec3 sunsetColor = glm::vec3((float)250/255, (float)214/255, (float)165/255);
 		glm::vec3 nightColor = glm::vec3((float)25/255, (float)25/255, (float)112/255);
 
@@ -156,6 +155,14 @@ namespace renderer {
 			glUniform1f(chicken3421::get_uniform_location(program, name.c_str()), value); 
 		}
 
+		void setMat4(const std::string &name, const glm::mat4 &mat) const {
+			glUniformMatrix4fv(chicken3421::get_uniform_location(program, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+		}
+
+		void setVec3(const std::string &name, const glm::vec3 &value) const { 
+			glUniform3fv(glGetUniformLocation(chicken3421::get_uniform_location(program, name.c_str()), name.c_str()), 1, &value[0]); 
+		}
+
 		/**
 		 * @brief Changes the sunlight color based on the given degree.
 		 * 
@@ -187,25 +194,6 @@ namespace renderer {
 		 */
 		int getMaxLights() {
 			return MAX_LIGHTS;
-		}
-
-		/**
-		 * @brief Gets the sky color depending on the given degree
-		 * 
-		 * @param degree 
-		 * @return glm::vec3 
-		 */
-		glm::vec3 getSkyColor(float degree) {
-
-			if (degree >= 0.0f && degree < 90.0f) {
-				return sunriseColor + ((dayBlueColor - sunriseColor) * glm::vec3(degree / 90.0f)); 
-			} else if (degree >= 90.0f && degree < 180.0f) {
-				return dayBlueColor + ((sunsetColor - dayBlueColor) * glm::vec3((degree - 90) / 90.0f)); 
-			} else if (degree >= 180.0f && degree < 270.0f) {
-				return sunsetColor + ((nightColor - sunsetColor) * glm::vec3((degree - 180) / 90.0f)); 
-			} else {
-				return nightColor + ((sunriseColor - nightColor) * glm::vec3((degree - 270) / 90.0f)); 
-			}
 		}
 
 		/**

@@ -197,16 +197,6 @@ namespace scene {
         return block;
     }
 
-    node_t createSkySphere(GLuint texID, float radius, int tesselation) {
-
-        node_t sphere;
-        sphere.mesh = shapes::createSphere(radius, tesselation);
-        sphere.textureID = texID;
-        sphere.air = false;
-
-        return sphere;
-    }
-
     node_t createFlatSquare(GLuint texID, bool invert) {
 
         node_t square;
@@ -214,6 +204,13 @@ namespace scene {
         square.textureID = texID;
         square.air = false;
         return square;
+    }
+
+    node_t createSkyBox() {
+        node_t skyBox;
+        skyBox.mesh = shapes::createSkybox();
+        skyBox.air = false;
+        return skyBox;
     }
 
     node_t createBedPlayer(GLuint bedTexID, GLuint playerTexID) {

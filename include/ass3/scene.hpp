@@ -316,16 +316,6 @@ namespace scene {
     node_t createBlock(int x, int y, int z, blockData data, bool invertNormals, bool affectedByLight);
 
     /**
-     * @brief Create a Sky Sphere object that has the radius and tesselation of the given values
-     * 
-     * @param texID 
-     * @param radius 
-     * @param tesselation 
-     * @return node_t 
-     */
-    node_t createSkySphere(GLuint texID, float radius, int tesselation);
-
-    /**
      * @brief Create a Flat Square object that is one dimensional
      * 
      * @param texID 
@@ -333,6 +323,8 @@ namespace scene {
      * @return node_t 
      */
     node_t createFlatSquare(GLuint texID, bool invert);
+
+    node_t createSkyBox();
 
     /**
      * @brief Create a Bed Player object. This node_t will have the right children to construct a Minecraft Player Model
@@ -357,7 +349,6 @@ namespace scene {
 
         size_t worldWidth = 110;
         const size_t WORLD_HEIGHT = 50;
-        const size_t MAX_STARS = 200;
         
         playerModel player;
         GLfloat worldTime = 0;
@@ -383,6 +374,7 @@ namespace scene {
         node_t centreOfWorld;
         node_t highlightedBlock;
         node_t bed;
+        node_t skyBox;
         
         std::vector<blockData> hotbar;
         std::vector<blockData> hotbarSecondary;
@@ -391,7 +383,7 @@ namespace scene {
 
         int renderDistance = 0;
         int hotbarIndex = 0;
-        size_t handIndex = 0, hotbarHUDIndex = 0, flyingIconIndex = 0, skySphereIndex = 0, moonIndex = 0, instructionIndex = 0;
+        size_t handIndex = 0, hotbarHUDIndex = 0, flyingIconIndex = 0, moonIndex = 0, instructionIndex = 0;
         bool flyingMode = false, startSwingHandAnim = false, runningMode = false, hideScreen = false;
 
         /**
@@ -436,9 +428,7 @@ namespace scene {
             sun.scale = glm::vec3(0.001, 4.0, 4.0);
             sun.translation.x += (float)getSkyRadius();
             GLuint auraTextureID = texture_2d::init("./res/textures/blocks/sun_aura.png");
-            node_t sunAura = scene::createBlock(0, 0, 0, auraTextureID, 0, false, true, false);
-            sunAura.scale = glm::vec3(4.0, 1.2, 1.2);
-            sun.children.push_back(sunAura);
+
             // Setting up Moon
             node_t moonOrbit;
             node_t moon = scene::createBlock(0, 0, 0, moonPhases[(size_t)moonPhase], 0, false, false, false);
@@ -448,50 +438,9 @@ namespace scene {
 
             moonOrbit.children.push_back(moon);
 
-            // Generating random stars
-            srand((glm::uint)time(0));
-            GLuint starTexBlueID = texture_2d::init("./res/textures/blocks/star_blue.png");
-            GLuint starTexYellowID = texture_2d::init("./res/textures/blocks/star_yellow.png");
-            
-            for (int i = 0; i < (int)MAX_STARS; i++) {
-                
-                float starX, starY, starZ;
-                do {
-                    // Randomly generates a Y and Z point, and then finds the X point
-                    // via sphere general form
-                    starY = (float)(rand() % getSkyRadius());
-                    starY += (float)fmod(rand(), 9.0f) * 0.1f;
-                    starY *= (rand() % 2 == 0) ? 1.0f : -1.0f;
-                    starZ = (float)(rand() % getSkyRadius());
-                    starZ += (float)fmod(rand(), 9.0f) * 0.1f;
-                    starZ *= (rand() % 2 == 0) ? 1.0f : -1.0f;
-                    starX = (float)sqrt(pow(getSkyRadius(), 2) - pow(starY, 2) - pow(starZ, 2));
-                } while (utility::calculateDistance(glm::vec3(0, 0, 0), glm::vec3(-starX + (float)getSkyRadius(), starY, starZ)) <= 2.0f);
+            // Creating skybox
+            skyBox = scene::createSkyBox();
 
-                node_t star = scene::createBlock(0, 0, 0, (rand() % 2) ? starTexBlueID : starTexYellowID, 0, false, false, false);
-                star.translation = {-starX + (float)getSkyRadius(), starY, starZ};
-
-                star.scale *= (float)((rand() % 6) + 2) / 40.0f;
-                star.rotation.x += (float)(rand() % 10) / 10.0f;
-                star.rotation.y += (float)(rand() % 10) / 10.0f;
-                star.rotation.z += (float)(rand() % 10) / 10.0f;
-
-                if (rand() % 10 == 0) {
-                    // 1 in 10 chance that the star has an aura around it
-                    star.children.push_back(scene::createBlock(0, 0, 0, auraTextureID, 0, false, false, false));
-                    star.children.back().scale = glm::vec3(2.5f, 2.5f, 2.5f);
-                }
-                star.illuminating = true;
-                moonOrbit.children.push_back(star);
-            }
-
-            node_t skySphere = createSkySphere(0, (float)getSkyRadius() + 1.0f, 256);
-            // skySphere.texture = texture_2d::init("./res/textures/sky.png");
-            skySphere.rotation = glm::vec3(0, 0, 90);
-            skySphere.diffuse = glm::vec4((float)173/255, (float)216/255, (float)230/255, 1.0f);
-
-            centreOfWorld.children.push_back(skySphere);
-            skySphereIndex = centreOfWorld.children.size() - (size_t)1;
             centreOfWorld.children.push_back(sun);
             centreOfWorld.children.push_back(moonOrbit);
             moonIndex = centreOfWorld.children.size() - (size_t)1;
@@ -618,9 +567,9 @@ namespace scene {
             //             -> Instructions
             //             -> Hotbar object -> All 9 items
 
-            // Centre of the World Node -> Skybox
-            //                          -> Sun -> Sun aura
-            //                          -> Moon -> All stars -> Some stars having another layer around it
+            // Centre of the World Node
+            //                          -> Sun
+            //                          -> Moon
 
             // Bed -> Centre Of Player Node -> Head
             //                              -> Torso
@@ -842,23 +791,6 @@ namespace scene {
             return;
         }
 
-        /**
-         * @brief Rotates the stars based on the given delta time. Also flicker a random star with each call
-         * 
-         * @param dt 
-         */
-        void tickStars(float dt) {
-            // Index 0 is the moon. Skip it
-            for (size_t i = 1; i < MAX_STARS; i++) {
-                node_t *starPointer = &centreOfWorld.children[(size_t)moonIndex].children[i];
-                bool status = (rand() % 20 == 0);
-                starPointer->air = status;
-                if (starPointer->children.size() > 0) {
-                    starPointer->children.front().air = status;
-                }
-                starPointer->rotation.x += 10.0f * dt;
-            }
-        }
 
         /**
          * @brief Switches between the main hotbar and the secondary hotbar with the wool blocks
@@ -887,13 +819,11 @@ namespace scene {
          * @param skyColor 
          * @param dt 
          */
-        void updateSunPosition(float degree, glm::vec3 skyColor, float dt) {
-            tickStars(dt);
+        void updateSunPosition(float degree, float dt) {
             worldTime = fmod(abs(degree / 360.0f), 1.0f);
             centreOfWorld.translation = playerCamera.pos;
             centreOfWorld.translation.y -= (eyeLevel + 6.5f);
             centreOfWorld.rotation = glm::vec3(0, 0, degree);
-            centreOfWorld.children[skySphereIndex].diffuse = skyColor;
         }
 
         /**
