@@ -70,8 +70,13 @@ namespace utility {
 	}
 
 	void resizeWindow(int originalWidth, int originalHeight, int newWidth, int newHeight) {
-
-		glViewport(0, 0, newWidth, newHeight);
+		
+		if (newWidth > newHeight) {
+			auto readjustedWidth = (float)originalWidth * ((float)newHeight / (float)originalHeight);
+			glViewport(glm::max(0, (newWidth - (int)readjustedWidth) / 2), 0, (int)readjustedWidth, newHeight);
+		} else {
+			glViewport(0, 0, originalWidth, originalHeight);
+		}
 
 		return;
 	}

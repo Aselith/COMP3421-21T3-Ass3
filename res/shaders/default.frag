@@ -70,7 +70,7 @@ float calcShadow() {
     vec3 pos = fragPosLightSpace.xyz * 0.5 + 0.5;
     pos.z = pos.z > 1.0 ? 1.0 : pos.z;
     
-    float biasLight = max(0.011 * (1.0 - dot(-uSun.direction, vNormal)), 0.005);
+    float biasLight = max(0.0105 * (1.0 - dot(-uSun.direction, vNormal)), 0.005);
 
     float returnShadowValue = 0.0f;
     vec2 texelSize = 1.0f / textureSize(uDepthMap, 0);

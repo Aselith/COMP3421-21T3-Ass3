@@ -14,11 +14,11 @@
 #include <ass3/player.hpp>
 #include <ass3/texture_2d.hpp>
 #include <ass3/renderer.hpp>
+#include <ass3/player_model.hpp>
 
 #include <math.h>
 #include <vector>
 #include <iostream>
-
 
 namespace scene {
 
@@ -52,6 +52,182 @@ namespace scene {
         int x = 0, y = 0, z = 0;
         int lightID = -1;
         bool air = true, transparent = false, illuminating = false, ignoreCulling = false;
+    };
+
+    struct playerModel {
+        const GLfloat PIXEL_SIZE = 0.0625f;
+        const GLfloat OFFSET = 8.0f;
+
+        GLfloat walkAnimationCycle = 0.0f, idleAnimationCycle = 0.0f;
+        std::vector<glm::vec3> controlPointWalk = {
+            {000.0f,   000.0f, 000.0f},
+            {200.0f,   200.0f, 000.0f},
+            {200.0f,  -200.0f, 000.0f},
+            {400.0f,   000.0f, 000.0f},
+        };
+        std::vector<glm::vec3> controlPointIdle = {
+            {00.0f,   00.0f, 00.0f},
+            {10.0f,   10.0f, 00.0f},
+            {10.0f,   10.0f, 00.0f},
+            {20.0f,   00.0f, 00.0f},
+        };
+
+        scene::node_t positionInWorld;
+
+        scene::node_t *headNodePtrs;
+        scene::node_t *torsoNodePtrs;
+        scene::node_t *rightLegNodePtrs;
+        scene::node_t *leftLegNodePtrs;
+        scene::node_t *rightArmNodePtrs;
+        scene::node_t *swingArmNodePtrs;
+        scene::node_t *leftArmNodePtrs;
+
+        void initialise(GLuint playerTexID, GLuint blockTex) {
+
+            scene::node_t headNode;
+            scene::node_t torsoNode;
+            scene::node_t rightLegNode;
+            scene::node_t leftLegNode;
+            scene::node_t rightArmNode;
+            scene::node_t leftArmNode;
+
+            scene::node_t playerTorso;
+            playerTorso.mesh = shapes::createPlayerTorso();
+            playerTorso.textureID = playerTexID;
+            playerTorso.air = false;
+            torsoNode.children.push_back(playerTorso);
+
+            scene::node_t playerHead;
+            playerHead.mesh = shapes::createPlayerHead();
+            playerHead.textureID = playerTexID;
+            playerHead.translation.y += PIXEL_SIZE * 4;
+            playerHead.air = false;
+            headNode.children.push_back(playerHead);
+            headNode.translation.y += PIXEL_SIZE * 6;
+
+            scene::node_t playerLeftArm;
+            playerLeftArm.mesh = shapes::createPlayerArmLeft();
+            playerLeftArm.textureID = playerTexID;
+            playerLeftArm.translation.x += PIXEL_SIZE * 2; // Moving pivot point
+            playerLeftArm.translation.y -= PIXEL_SIZE * 6;
+            playerLeftArm.air = false;
+            leftArmNode.children.push_back(playerLeftArm);
+            leftArmNode.translation.x += PIXEL_SIZE * 4; // Push to the right position
+            leftArmNode.translation.y += PIXEL_SIZE * 6;
+
+            scene::node_t playerLeftLeg;
+            playerLeftLeg.mesh = shapes::createPlayerLegLeft();
+            playerLeftLeg.textureID = playerTexID;
+            playerLeftLeg.translation.y -= PIXEL_SIZE * 6; // Moving pivot point
+            playerLeftLeg.air = false;
+            leftLegNode.children.push_back(playerLeftLeg);
+            leftLegNode.translation.x += PIXEL_SIZE * 2; // Push to the right position
+            leftLegNode.translation.y -= PIXEL_SIZE * 6; // Push to the right position
+
+            scene::node_t playerRightArm;
+            playerRightArm.mesh = shapes::createPlayerArmRight();
+            playerRightArm.textureID = playerTexID;
+            playerRightArm.translation.x -= PIXEL_SIZE * 2; // Moving pivot point
+            playerRightArm.translation.y -= PIXEL_SIZE * 6;
+            playerRightArm.air = false;
+            // Creating block holding in hand
+            scene::node_t blockInHand;
+            blockInHand.mesh = shapes::createCube(false, true);
+            blockInHand.scale *= 0.3f;
+            blockInHand.textureID = blockTex;
+            blockInHand.air = false;
+            blockInHand.translation.y -= PIXEL_SIZE * 7;
+            blockInHand.translation.z += PIXEL_SIZE * 3;
+            blockInHand.rotation.z += 45.0f;
+            blockInHand.rotation.x += 45.0f;
+            blockInHand.rotation.y += 45.0f;
+            playerRightArm.children.push_back(blockInHand);
+
+            rightArmNode.children.push_back(playerRightArm);
+            rightArmNode.translation.x -= PIXEL_SIZE * 4; // Push to the right position
+            rightArmNode.translation.y += PIXEL_SIZE * 6;
+
+            scene::node_t playerRightLeg;
+            playerRightLeg.mesh = shapes::createPlayerLegRight();
+            playerRightLeg.textureID = playerTexID;
+            playerRightLeg.translation.y -= PIXEL_SIZE * 6; // Moving pivot point
+            playerRightLeg.air = false;
+            rightLegNode.children.push_back(playerRightLeg);
+            rightLegNode.translation.x -= PIXEL_SIZE * 2; // Push to the right position
+            rightLegNode.translation.y -= PIXEL_SIZE * 6; // Push to the right position
+
+            positionInWorld.children.push_back(torsoNode);
+            positionInWorld.children.push_back(headNode);
+            positionInWorld.children.push_back(leftArmNode);
+            positionInWorld.children.push_back(rightArmNode);
+            positionInWorld.children.push_back(leftLegNode);
+            positionInWorld.children.push_back(rightLegNode);
+
+            torsoNodePtrs = &positionInWorld.children.at(0);
+            headNodePtrs = &positionInWorld.children.at(1);
+            leftArmNodePtrs = &positionInWorld.children.at(2);
+            rightArmNodePtrs = &positionInWorld.children.at(3);
+            leftLegNodePtrs = &positionInWorld.children.at(4);
+            rightLegNodePtrs = &positionInWorld.children.at(5);
+        }
+
+        void tiltHead(float headPitch) {
+            headNodePtrs->rotation.x = -headPitch;
+        }
+
+        void rotateBody(float headYaw) {
+            positionInWorld.rotation.y = -headYaw + 180.0f;
+        }
+
+        void moveBody(glm::vec3 newPos, bool shiftMode, float ingameTime) {
+            positionInWorld.translation = newPos;
+            positionInWorld.translation.y -= 0.4f;
+            positionInWorld.translation.x -= 1.1f * ((ingameTime - 0.25f) / 0.25f);
+            if (shiftMode) positionInWorld.translation.y += 0.25f;
+        }
+
+        void idleAnimation(float dt, float swingCycle) {
+            if (walkAnimationCycle != 0) {
+                walkAnimationCycle = 0;
+                leftLegNodePtrs->rotation.x = utility::cubicBezier(controlPointWalk, 0).y;
+                rightLegNodePtrs->rotation.x = -utility::cubicBezier(controlPointWalk, 0).y;
+
+                leftArmNodePtrs->rotation.x = utility::cubicBezier(controlPointWalk, 0).y;
+                rightArmNodePtrs->rotation.x = -utility::cubicBezier(controlPointWalk, 0).y;
+            }
+            idleAnimationCycle += dt * 0.4f;
+            idleAnimationCycle = fmod(idleAnimationCycle, 1.0f);
+            // Right arm
+            if (swingCycle >= 0) {
+                rightArmNodePtrs->rotation.x = -utility::cubicBezier(controlPointWalk, swingCycle).y / 2.0f;
+            } else {
+                rightArmNodePtrs->rotation.x = 0;
+                rightArmNodePtrs->rotation.z = -utility::cubicBezier(controlPointIdle, idleAnimationCycle).y;
+            }
+            // Left arm
+            leftArmNodePtrs->rotation.z = utility::cubicBezier(controlPointIdle, idleAnimationCycle).y;
+        }
+
+        void walkAnimation(float dt, bool runningMode) {
+            if (idleAnimationCycle != 0) {
+                idleAnimationCycle = 0;
+                leftArmNodePtrs->rotation.z = utility::cubicBezier(controlPointIdle, 0).y;
+                rightArmNodePtrs->rotation.z = -utility::cubicBezier(controlPointIdle, 0).y;
+            }
+
+            auto amplitude = 0.4f, speed = 1.0f;
+            if (runningMode) amplitude = 0.7f, speed = 1.5f;
+
+            walkAnimationCycle += dt * speed;
+            walkAnimationCycle = fmod(walkAnimationCycle, 1.0f);
+
+            auto rotation = utility::cubicBezier(controlPointWalk, walkAnimationCycle).y * amplitude;
+            leftLegNodePtrs->rotation.x = rotation;
+            rightLegNodePtrs->rotation.x = -rotation;
+
+            leftArmNodePtrs->rotation.x = rotation;
+            rightArmNodePtrs->rotation.x = -rotation;
+        }
     };
 
     struct blockData {
@@ -183,7 +359,8 @@ namespace scene {
         const size_t WORLD_HEIGHT = 50;
         const size_t MAX_STARS = 200;
         
-        
+        playerModel player;
+        GLfloat worldTime = 0;
 
         float eyeLevel = 1.0f;
         bool shiftMode = false;
@@ -233,7 +410,8 @@ namespace scene {
             std::cout << "Generating world of size " << worldWidth << "x" << worldWidth << " with render distance " << renderDistance << ". Please standby...\n";
             
             // SETTING UP BED SCENE GRAPH
-            bed = createBedPlayer(texture_2d::init("./res/textures/blocks/bed.png"), texture_2d::init("./res/textures/player.png"));
+            GLuint playerTex = texture_2d::init("./res/textures/player.png");
+            bed = createBedPlayer(texture_2d::init("./res/textures/blocks/bed.png"), playerTex);
 
             GLuint flyingIcon = texture_2d::init("./res/textures/flying_mode.png");
 
@@ -390,6 +568,8 @@ namespace scene {
             blockHand.translation.y -= 0.15f;
             blockHand.translation.x += 0.25f;
             blockHand.scale = glm::vec3(0.15, 0.15, 0.15);
+
+            player.initialise(playerTex, hotbar.at(2).texture);
 
             screen.children.push_back(blockHand);
             handIndex = screen.children.size() - 1;
@@ -709,6 +889,7 @@ namespace scene {
          */
         void updateSunPosition(float degree, glm::vec3 skyColor, float dt) {
             tickStars(dt);
+            worldTime = fmod(abs(degree / 360.0f), 1.0f);
             centreOfWorld.translation = playerCamera.pos;
             centreOfWorld.translation.y -= (eyeLevel + 6.5f);
             centreOfWorld.rotation = glm::vec3(0, 0, degree);
@@ -725,11 +906,7 @@ namespace scene {
             // Only bob hand if the player is on the ground
             if (playerCamera.pos.y == (float)groundLevel + eyeLevel && swingCycle == -1.0f) {
                 // Controls how fast to bobhand
-                if (shiftMode) {
-                    dt /= 4.0f;
-                } else if (runningMode) {
-                    dt *= 1.5f;
-                }
+                dt *= walkingMultiplier;
                 walkCycle += dt * 2.0f;
                 walkCycle = fmod(walkCycle, 1.0f);
                 std::vector<glm::vec3> controlPoint = {
@@ -1072,15 +1249,17 @@ namespace scene {
             }
 
             float step = dt * CAMERA_SPEED * walkingMultiplier;
-            // Controls running
-            if (runningMode) {
-                walkingMultiplier = 1.2f;
+            // Controls walking multipliers
+            if (runningMode && !shiftMode) {
+                walkingMultiplier = 1.0f;
+            } else if (shiftMode) {
+                walkingMultiplier = 0.2f;
             } else {
                 walkingMultiplier = 0.5f;
             }
 
-            if (shiftMode) {
-                walkingMultiplier = 0.2f;
+            if (strcmp(blockBelowName().c_str(), "slime_block") == 0) {
+                walkingMultiplier *= 0.5f;
             }
 
             if (findClosestBlockAboveBelow(-1) == playerCamera.pos.y - eyeLevel) {
@@ -1153,12 +1332,18 @@ namespace scene {
                     }
                 }
             }
-
+            updateBlocksToRender();
             // If the positions differ, then bob the hand
+            if (originalPosition.x != playerCamera.pos.x || playerCamera.pos.z != originalPosition.z) {
+                player.walkAnimation(dt, runningMode);
+            } else {
+                player.idleAnimation(dt, swingCycle);
+            }
             if (originalPosition != playerCamera.pos) {
                 bobHand(dt);
-                updateBlocksToRender();
             }
+            player.tiltHead(playerCamera.pitch);
+            player.rotateBody(playerCamera.yaw);
 
             if (glfwGetKey(window, GLFW_KEY_W) != GLFW_PRESS) {
                 runningMode = false;
@@ -1172,7 +1357,7 @@ namespace scene {
                 eyeLevel = 1.0f;
                 shiftMode = false;
             }
-            bool landedOnSlime = false;
+
             // Enacting gravity onto the camera
             if (!flyingMode) {
 
@@ -1186,9 +1371,11 @@ namespace scene {
                 if (playerCamera.pos.y < groundLevel + eyeLevel) {
                     // Prevents player from falling through the ground
                     playerCamera.pos.y = groundLevel + eyeLevel;
-                    if (strcmp(terrain.at(round(playerCamera.pos.x)).at(groundLevel - 1).at(round(playerCamera.pos.z)).name.c_str(), "slime_block") == 0) {
-                        playerCamera.yVelocity = abs(playerCamera.yVelocity) * 0.75f;
-                        if (playerCamera.yVelocity >= 5.0f && !shiftMode) {
+                    // Controls the bounciness of the slime block
+                    if (strcmp(blockBelowName().c_str(), "slime_block") == 0) {
+                        playerCamera.yVelocity = abs(playerCamera.yVelocity) * 0.75 + GRAVITY * dt;
+                        if (playerCamera.yVelocity >= 4.0f && !shiftMode) {
+                            // Enact gravity
                             playerCamera.pos.y += playerCamera.yVelocity * dt;
                             playerCamera.yVelocity += GRAVITY * dt;
                         }
@@ -1247,10 +1434,18 @@ namespace scene {
         bool isCoordOutBoundaries(int x, int y, int z) {
             try {
                 terrain.at(x).at(y).at(z).air = terrain.at(x).at(y).at(z).air;
-            } catch (...) {
+            } catch (std::out_of_range) {
                 return true;
             }
             return false;
+        }
+
+        std::string blockBelowName() {
+            if (!isCoordOutBoundaries(round(playerCamera.pos.x), groundLevel - 1, round(playerCamera.pos.z))) {
+                return terrain.at(round(playerCamera.pos.x)).at(groundLevel - 1).at(round(playerCamera.pos.z)).name;
+            } else {
+                return "";
+            }
         }
 
         /**
@@ -1331,7 +1526,7 @@ namespace scene {
          * 
          * @param renderInfo 
          */
-        void drawWorld(renderer::renderer_t renderInfo, glm::mat4 view_proj, bool onlyIlluminating = false) {
+        void drawWorld(renderer::renderer_t renderInfo, bool onlyIlluminating = false) {
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -1340,6 +1535,12 @@ namespace scene {
                 drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo);
             }
             drawTerrain(glm::mat4(1.0f), renderInfo, onlyIlluminating);
+
+            // Draw the player if we are rendering shadow
+            if (strcmp(renderInfo.type.c_str(), "shadow") == 0 && !cutsceneEnabled) {
+                player.moveBody(playerCamera.pos, shiftMode, worldTime);
+                drawElement(&player.positionInWorld, glm::mat4(1.0f), renderInfo);
+            }
 
             if (onlyIlluminating) {
                 // Stop drawing world if all we need is bloom

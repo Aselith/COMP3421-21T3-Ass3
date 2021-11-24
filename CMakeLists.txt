@@ -41,6 +41,7 @@ target_sources(${ACTIVITY}
         include/ass3/texture_2d.hpp
         include/ass3/static_mesh.hpp
         include/ass3/shapes.hpp
+        include/ass3/player_model.hpp
         
         src/frustum.cpp
         src/utility.cpp
@@ -50,6 +51,7 @@ target_sources(${ACTIVITY}
         src/texture_2d.cpp
         src/static_mesh.cpp
         src/shapes.cpp
+        src/player_model.cpp
         
 
         src/main.cpp

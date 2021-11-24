@@ -423,6 +423,7 @@ int main() {
                 std::cout << "Yaw: " << info->gameWorld->playerCamera.yaw << "\n";
                 std::cout << "Pitch: " << info->gameWorld->playerCamera.pitch << "\n";
                 std::cout << "Player Vertical Velocity: " << info->gameWorld->playerCamera.yVelocity << "\n";
+                std::cout << "Ingame Time: " << info->gameWorld->worldTime << "\n";
                 std::cout << "Exposure levels: " << info->exposureLevel << "\n";
                 std::cout << "Illuminance: " << info->averageIlluminance << "\n";
                 std::cout << "Current frame rate: " << info->frameRate << " frames per second\n\n";
@@ -682,7 +683,7 @@ int main() {
     glfwFocusWindow(window);
 
     float worldSize = gameWorld.getWorldSize();
-    glm::vec3 centreOfWorld = gameWorld.getCentreOfWorld();
+    glm::vec3 *playerPosPtr = &gameWorld.playerCamera.pos;
     // RENDER LOOP
     while (!glfwWindowShouldClose(window)) {
         
@@ -713,8 +714,9 @@ int main() {
 
         // Changing and updating where the sun will be
         // sunPosition = glm::vec3(gameWorld.getCurrCamera()->pos.x + (renderDistance) * glm::cos(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.y + (renderDistance - 10) * glm::sin(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.z);
-        glm::vec3 sunPosition = glm::vec3(centreOfWorld.x + (30) * glm::cos(glm::radians(degrees)), centreOfWorld.y + (30 - 10) * glm::sin(glm::radians(degrees)), centreOfWorld.z);
-        glm::vec3 sunPosOpp = glm::vec3(centreOfWorld.x + (30) * glm::cos(glm::radians(degrees + 180)), centreOfWorld.y + (30 - 10) * glm::sin(glm::radians(degrees + 180)), centreOfWorld.z);
+        auto sunDistance = gameWorld.getSkyRadius();
+        glm::vec3 sunPosition = glm::vec3(playerPosPtr->x + (sunDistance) * glm::cos(glm::radians(degrees)), playerPosPtr->y + (sunDistance - 10) * glm::sin(glm::radians(degrees)), playerPosPtr->z);
+        glm::vec3 sunPosOpp = glm::vec3(playerPosPtr->x + (sunDistance) * glm::cos(glm::radians(degrees + 180)), playerPosPtr->y + (sunDistance - 10) * glm::sin(glm::radians(degrees + 180)), playerPosPtr->z);
 
         defaultShader.sun_light_dir = glm::normalize(sunPosOpp - sunPosition);
         defaultShader.changeSunlight(degrees);
@@ -733,16 +735,16 @@ int main() {
         glm::mat4 lightProjection, lightView, lightSpaceMatrix;
 
         // Calculating light view
-        float nearPlane = 0.0f, farPlane = 2 * renderDistance;
+        float nearPlane = 0.0f, farPlane = 3 * sunDistance;
         lightProjection = glm::ortho(-worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, -worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, nearPlane, farPlane);
-        lightView = glm::lookAt(sunPosition, gameWorld.getCentreOfWorld(), glm::vec3(0.0, 1.0, 0.0));
+        lightView = glm::lookAt(sunPosition, {playerPosPtr->x, playerPosPtr->y, playerPosPtr->z}, glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
         glUniformMatrix4fv(shadowShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
-        gameWorld.drawWorld(shadowShader, lightSpaceMatrix);
+        gameWorld.drawWorld(shadowShader);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Render scene as normal, using the shadow map as the 3rd texture
@@ -758,21 +760,21 @@ int main() {
         // Binding the shadow mapping texture over
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, depthMapTexID);
-        gameWorld.drawWorld(defaultShader, view_proj);
+        gameWorld.drawWorld(defaultShader);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Drawing world without any filters
         glBindFramebuffer(GL_FRAMEBUFFER, untamperedFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         defaultShader.activate();
-        gameWorld.drawWorld(defaultShader, view_proj, false);
+        gameWorld.drawWorld(defaultShader, false);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Drawing the world again but with the bloom on only
         glBindFramebuffer(GL_FRAMEBUFFER, onlyBloomFBO);
         glClearColor(0, 0, 0, 1);
         defaultShader.activate();
-        gameWorld.drawWorld(defaultShader, view_proj, true);
+        gameWorld.drawWorld(defaultShader, true);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Drawing the recently bloom only scene to the ping pong frame
