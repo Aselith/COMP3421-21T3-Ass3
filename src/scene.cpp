@@ -104,6 +104,7 @@ namespace scene {
             texture_2d::destroy(node->textureID);
             texture_2d::destroy(node->specularID);
             texture_2d::destroy(node->bloomTexID);
+            texture_2d::destroy(node->reflectionTexID);
         }
     }
 
@@ -154,6 +155,17 @@ namespace scene {
         data.rotatable = rotatable;
 
         return data;
+    }
+
+
+    glm::mat4 rotateViewMatrix(GLfloat pitch, GLfloat yaw, glm::vec3 pos) {
+
+        glm::mat4 yawed = glm::rotate(glm::mat4(1.0), -glm::radians(yaw), glm::vec3(0, 1, 0));
+        glm::mat4 pitched = glm::rotate(glm::mat4(1.0), glm::radians(pitch), glm::vec3(1, 0, 0));
+
+        glm::mat4 viewMatrix = glm::transpose(yawed * pitched);
+        viewMatrix *= glm::translate(glm::mat4(1.0), -pos);
+        return viewMatrix;
     }
 
     node_t createBlock(int x, int y, int z, GLuint texID, GLuint specID, bool transparent, bool invertNormals, bool affectedByLight) {

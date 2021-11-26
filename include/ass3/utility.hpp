@@ -28,6 +28,19 @@ namespace utility {
     float time_delta();
 
     /**
+     * @brief Determines if value is between min and max, inclusive of min but exclusive
+     * of max.
+     * Min should be smaller than max.
+     * 
+     * @param value 
+     * @param min 
+     * @param max 
+     * @return true if in range
+     * @return false if not in range
+     */
+    bool isInRange(float value, float min, float max);
+
+    /**
      * @brief 
      * 
      */

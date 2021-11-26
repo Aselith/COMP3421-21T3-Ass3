@@ -27,6 +27,7 @@ namespace scene {
     const float CAMERA_SPEED    = 5.0f;
     const float PLAYER_RADIUS   = 0.25f; // 0.25
     const float SCREEN_DISTANCE = 0.25f;
+    const int   REFLECTION_SIZE = 2560;
 
 
     struct node_t {
@@ -36,6 +37,7 @@ namespace scene {
         GLuint textureID = 0;
         GLuint specularID = 0;
         GLuint bloomTexID = 0;
+        GLuint reflectionTexID = 0;
         glm::vec4 color = glm::vec4(1.0f);
         glm::vec3 ambient = glm::vec3(1.0f);
 		glm::vec3 diffuse = glm::vec3(1.0f);
@@ -215,8 +217,8 @@ namespace scene {
                 rightArmNodePtrs->rotation.z = -utility::cubicBezier(controlPointIdle, 0).y;
             }
 
-            auto amplitude = 0.4f, speed = 1.0f;
-            if (runningMode) amplitude = 0.7f, speed = 1.5f;
+            auto amplitude = 0.5f, speed = 1.0f;
+            if (runningMode) amplitude = 1.2f, speed = 1.5f;
 
             walkAnimationCycle += dt * speed;
             walkAnimationCycle = fmod(walkAnimationCycle, 1.0f);
@@ -287,6 +289,8 @@ namespace scene {
      */
     blockData combineBlockData(std::string stringName, bool transparent, bool illuminating, bool rotatable = false, glm::vec3 color = {0, 0, 0}, float intensity = 1.0f);
 
+    glm::mat4 rotateViewMatrix(GLfloat pitch, GLfloat yaw, glm::vec3 pos);
+
     /**
      * @brief Create a Block object with the given texID and specIDs
      * 
@@ -324,6 +328,11 @@ namespace scene {
      */
     node_t createFlatSquare(GLuint texID, bool invert);
 
+    /**
+     * @brief Create a Sky Box object
+     * 
+     * @return node_t 
+     */
     node_t createSkyBox();
 
     /**
@@ -369,6 +378,8 @@ namespace scene {
 
         std::vector<std::vector<std::vector<node_t>>> terrain;
         std::vector<node_t *> listOfBlocksToRender;
+        std::vector<node_t *> listOfTransBlocksToRender;
+        std::vector<node_t *> listOfShinyBlocksToRender;
 
         node_t screen;
         node_t centreOfWorld;
@@ -822,7 +833,6 @@ namespace scene {
         void updateSunPosition(float degree, float dt) {
             worldTime = fmod(abs(degree / 360.0f), 1.0f);
             centreOfWorld.translation = playerCamera.pos;
-            centreOfWorld.translation.y -= (eyeLevel + 6.5f);
             centreOfWorld.rotation = glm::vec3(0, 0, degree);
         }
 
@@ -1188,7 +1198,7 @@ namespace scene {
                 walkingMultiplier = 0.5f;
             }
 
-            if (strcmp(blockBelowName().c_str(), "slime_block") == 0) {
+            if (strcmp(blockBelowName().c_str(), "slime_block") == 0 && groundLevel == playerCamera.pos.y - 1.0f) {
                 walkingMultiplier *= 0.5f;
             }
 
@@ -1460,11 +1470,11 @@ namespace scene {
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            if (strcmp(renderInfo.type.c_str(), "default") == 0 && !onlyIlluminating) {
-                renderInfo.setBasePters(playerCamera.pos);
+            if (strcmp(renderInfo.type.c_str(), "default") == 0) {
+                renderInfo.setBasePters(getCurrCamera()->pos);
                 drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo);
             }
-            drawTerrain(glm::mat4(1.0f), renderInfo, onlyIlluminating);
+            drawTerrain(glm::mat4(1.0f), renderInfo, onlyIlluminating, getCurrCamera());
 
             // Draw the player if we are rendering shadow
             if (strcmp(renderInfo.type.c_str(), "shadow") == 0 && !cutsceneEnabled) {
@@ -1472,23 +1482,13 @@ namespace scene {
                 drawElement(&player.positionInWorld, glm::mat4(1.0f), renderInfo);
             }
 
-            if (onlyIlluminating) {
-                // Stop drawing world if all we need is bloom
-                return;
-            }
-
-            if (!shiftMode && strcmp(renderInfo.type.c_str(), "default") == 0) {
-                // Drawing the highlighted block if shift mode is not enabled
-                highlightedBlock.translation = findCursorBlock(false);
-                if (!isCoordOutBoundaries(highlightedBlock.translation.x, highlightedBlock.translation.y, highlightedBlock.translation.z)) {
-                    drawElement(&highlightedBlock, glm::mat4(1.0f), renderInfo);
-                }
-            }
-
-            // Draw bed if cutscene is occuring, otherwise draw HUD
-            if (cutsceneEnabled) {
+            // Draw bed if cutscene is occuring
+            if (cutsceneEnabled && onlyIlluminating) {
+                renderInfo.setInt("forceBlack", true);
                 drawElement(&bed, glm::mat4(1.0f), renderInfo);
+                renderInfo.setInt("forceBlack", false);
             }
+            return;
         }
 
         glm::vec3 getCentreOfWorld() {
@@ -1507,14 +1507,14 @@ namespace scene {
          * @param parent_mvp 
          * @param renderInfo 
          */
-        void drawTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating) {
+        void drawTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating, player::playerPOV *cam) {
 
             for (size_t i = 0; i < listOfBlocksToRender.size(); i++) {
                 float x = listOfBlocksToRender[i]->translation.x;
                 float y = listOfBlocksToRender[i]->translation.y;
                 float z = listOfBlocksToRender[i]->translation.z;
                 
-                if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= renderDistance) {
+                if (utility::calculateDistance(glm::vec3(x, y, z), cam->pos) <= renderDistance) {
                     
                     if (!(strcmp(renderInfo.type.c_str(), "shadow") == 0 && listOfBlocksToRender[i]->transparent)) {
 
@@ -1531,6 +1531,241 @@ namespace scene {
         }
 
         /**
+         * @brief Draws all the transparent bocks
+         * 
+         * @param parent_mvp 
+         * @param renderInfo 
+         * @param onlyIlluminating 
+         */
+        void drawTransTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating) {
+
+            // Draw bed if cutscene is occuring
+            if (cutsceneEnabled) {
+                drawElement(&bed, glm::mat4(1.0f), renderInfo);
+            }
+
+            for (size_t i = 0; i < listOfTransBlocksToRender.size(); i++) {
+                float x = listOfTransBlocksToRender[i]->translation.x;
+                float y = listOfTransBlocksToRender[i]->translation.y;
+                float z = listOfTransBlocksToRender[i]->translation.z;
+                
+                if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= renderDistance) {
+                    
+                    if (!(strcmp(renderInfo.type.c_str(), "shadow") == 0 && listOfBlocksToRender[i]->transparent)) {
+
+                        if (strcmp(renderInfo.type.c_str(), "shadow") == 0) {
+                            drawBlock(listOfTransBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
+                        } else if (frustum::isBlockInView(player::getLookingDirection(getCurrCamera(), 1), glm::vec3(x, y, z), getCurrCamera()->pos)) {
+                            drawBlock(listOfTransBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
+                        } else if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= 2.0f) {
+                            drawBlock(listOfTransBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
+                        }
+                    }
+                }
+            }
+            // Drawing highlight around selected block as that is transparent as well
+            if (!shiftMode && strcmp(renderInfo.type.c_str(), "default") == 0) {
+                // Drawing the highlighted block if shift mode is not enabled
+                highlightedBlock.translation = findCursorBlock(false);
+                auto pos = highlightedBlock.translation;
+                if (!isCoordOutBoundaries(pos.x, pos.y, pos.z)) {
+                    drawElement(&highlightedBlock, glm::mat4(1.0f), renderInfo);
+                }
+            }
+        }
+
+        void drawShinyTerrainNormally(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating) {
+
+            for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
+                float x = listOfShinyBlocksToRender[i]->translation.x;
+                float y = listOfShinyBlocksToRender[i]->translation.y;
+                float z = listOfShinyBlocksToRender[i]->translation.z;
+                
+                if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= renderDistance) {
+                    
+                    if (!(strcmp(renderInfo.type.c_str(), "shadow") == 0 && listOfBlocksToRender[i]->transparent)) {
+
+                        if (strcmp(renderInfo.type.c_str(), "shadow") == 0) {
+                            drawBlock(listOfShinyBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
+                        } else if (frustum::isBlockInView(player::getLookingDirection(getCurrCamera(), 1), glm::vec3(x, y, z), getCurrCamera()->pos)) {
+                            drawBlock(listOfShinyBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
+                        } else if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= 2.0f) {
+                            drawBlock(listOfShinyBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
+                        }
+                    }
+                }
+            }
+        }
+
+        void drawShinyTerrain(
+            const glm::mat4 &viewProj, 
+            renderer::renderer_t renderInfo,
+            renderer::renderer_t defaultRender,
+            renderer::renderer_t skyBoxRender,
+            glm::vec2 skyTextures,
+            GLfloat blendFactor,
+            glm::vec2 winSize,
+            GLuint forceMap = 0
+        ) {
+
+            auto oldViewProj = renderInfo.projection * getCurrCamera()->get_view();
+
+            for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
+                // renderInfo.setInt("uCubeMap", 3);
+                if (listOfShinyBlocksToRender.at(i)->reflectionTexID == 0) {
+                    listOfShinyBlocksToRender.at(i)->reflectionTexID = texture_2d::createEmptyCubeMap(REFLECTION_SIZE);
+                    defaultRender.activate();
+                    renderToEnvironmentMap(
+                        listOfShinyBlocksToRender.at(i)->reflectionTexID,
+                        listOfShinyBlocksToRender.at(i)->translation,
+                        defaultRender,
+                        skyBoxRender,
+                        skyTextures,
+                        blendFactor,
+                        oldViewProj,
+                        winSize
+                    );
+                    renderInfo.activate();
+                }
+                // Drawing the reflection
+                auto model = glm::mat4(1.0f);
+                model *= glm::translate(glm::mat4(1.0), listOfShinyBlocksToRender[i]->translation);
+                model *= glm::scale(glm::mat4(1.0), listOfShinyBlocksToRender[i]->scale);
+                model *= glm::rotate(glm::mat4(1.0), glm::radians(listOfShinyBlocksToRender[i]->rotation.z), glm::vec3(0, 0, 1));
+                model *= glm::rotate(glm::mat4(1.0), glm::radians(listOfShinyBlocksToRender[i]->rotation.y), glm::vec3(0, 1, 0));
+                model *= glm::rotate(glm::mat4(1.0), glm::radians(listOfShinyBlocksToRender[i]->rotation.x), glm::vec3(1, 0, 0));
+
+                // Rendering the shiny bits
+                renderInfo.setMat4("uViewProj", viewProj);
+                renderInfo.setMat4("uModel", model);
+                renderInfo.setInt("skybox", 0);
+                renderInfo.setVec3("cameraPos", getCurrCamera()->pos);
+                glActiveTexture(GL_TEXTURE0);
+                if (forceMap != 0) {
+                    glBindTexture(GL_TEXTURE_CUBE_MAP, forceMap);
+                } else {
+                    glBindTexture(GL_TEXTURE_CUBE_MAP, listOfShinyBlocksToRender.at(i)->reflectionTexID);
+                }
+                listOfShinyBlocksToRender.at(i)->ignoreCulling = true;
+                
+                glBindVertexArray(listOfShinyBlocksToRender[i]->mesh.vao);
+                glDrawElements(GL_TRIANGLES, listOfShinyBlocksToRender[i]->mesh.indices_count, GL_UNSIGNED_INT, nullptr);
+                glBindVertexArray(0);
+            }
+
+        }
+
+        void renderToEnvironmentMap (
+            GLuint cubeMap,
+            glm::vec3 centre,
+            renderer::renderer_t renderInfo,
+            renderer::renderer_t skyboxRender,
+            glm::vec2 skyTextures,
+            GLfloat blendFactor,
+            glm::mat4 usualView,
+            glm::vec2 winSize
+        ) {
+
+            GLfloat near = 0.1f, far = 200.0f, FOV = 90.0f, aspectRatio = 1.0f;
+            GLfloat yScale = (GLfloat) ((1.0f / glm::tan(glm::radians(FOV / 2.0f))));
+            GLfloat xScale = yScale / aspectRatio;
+            GLfloat frustumLen = far - near;
+
+            // Setting up projection matrix
+            glm::mat4 projectionMatrix = glm::mat4(0.0f);
+            projectionMatrix[0][0] = xScale;
+            projectionMatrix[1][1] = yScale;
+            projectionMatrix[2][2] = -((far + near) / frustumLen);
+            projectionMatrix[2][3] = -1;
+            projectionMatrix[3][2] = -((2 * near * far) / frustumLen);
+            projectionMatrix[3][3] = 0;
+
+            glm::mat4 projViewMatrix;
+
+            GLuint fbo, rbo;
+            glGenFramebuffers(1, &fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+            glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+            glGenRenderbuffers(1, &rbo);
+            glBindRenderbuffer(GL_FRAMEBUFFER, rbo);
+            // Texture size as REFLECTION_SIZE
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, REFLECTION_SIZE, REFLECTION_SIZE);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+            glViewport(0, 0, REFLECTION_SIZE, REFLECTION_SIZE);
+            auto reflectCamera = player::createCamera(centre, {0, 0, 0});
+            for (int i = 0; i < 6; i++) {
+                
+                glFramebufferTexture2D(
+                    GL_FRAMEBUFFER,
+                    GL_COLOR_ATTACHMENT0,
+                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                    cubeMap,
+                    0
+                );
+                switch(i) {
+                    case 0:
+                        reflectCamera.pitch = 0.0f;
+                        reflectCamera.yaw = 90.0f;
+                        break;
+                    case 1:
+                        reflectCamera.pitch = 0.0f;
+                        reflectCamera.yaw = -90.0f;
+                        break;
+                    case 2:
+                        reflectCamera.pitch = 180.0f;
+                        reflectCamera.yaw = -90.0f;
+                        break;
+                    case 3:
+                        reflectCamera.pitch = 90.0f;
+                        reflectCamera.yaw = 180.0f;
+                        break;
+                    case 4:
+                        reflectCamera.pitch = 0.0f;
+                        reflectCamera.yaw = 180.0f;
+                        break;
+                    case 5:
+                        reflectCamera.pitch = 0.0f;
+                        reflectCamera.yaw = 0.0f;
+                        break;
+                }
+                projViewMatrix = reflectCamera.get_view() * projectionMatrix;
+                glClearColor(1, 1, 1, 1);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                renderInfo.setMat4("uViewProj", projViewMatrix);
+                drawTerrain(glm::mat4(1.0f), renderInfo, false, &reflectCamera);
+                drawSkyBox(skyboxRender, renderInfo.projection, skyTextures.x, skyTextures.y, blendFactor);
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            // glUniformMatrix4fv(renderInfo.view_proj_loc, 1, GL_FALSE, glm::value_ptr(usualView));
+            glViewport(0, 0, winSize.x, winSize.y);
+            chicken3421::delete_framebuffer(fbo);
+            chicken3421::delete_framebuffer(rbo);
+        }
+
+        void drawSkyBox(renderer::renderer_t shader, glm::mat4 proj, GLuint prevTex, GLuint currTex, GLfloat blendValue) {
+            glDepthFunc(GL_LEQUAL);
+            shader.activate();
+            auto skyBoxView = glm::mat4(glm::mat3(getCurrCamera()->get_view()));
+            shader.setMat4("uView", skyBoxView);
+            shader.setMat4("uProjection", proj);
+            glBindVertexArray(skyBox.mesh.vao);
+            shader.setInt("prevSkybox", 0);
+            shader.setInt("currSkybox", 1);
+            shader.setFloat("blendFactor", blendValue);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, prevTex);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, currTex);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glBindVertexArray(0);
+            glDepthFunc(GL_LESS);
+            return;
+        }
+
+
+        /**
          * @brief Call this to update the listOfBlocks to render. Only works if the last rendered position is far away enough from
          * the player's current position. forceRender = true to ignore this
          * 
@@ -1543,6 +1778,8 @@ namespace scene {
             if (!forceRender && utility::calculateDistance(getCurrCamera()->pos, lastRenderedPos) <= (float)(renderDistance / 10.0f)) return;
 
             listOfBlocksToRender.clear();
+            listOfTransBlocksToRender.clear();
+            listOfShinyBlocksToRender.clear();
 
             std::vector<glm::vec3> transparentBlocks;
             int width = worldWidth, height = WORLD_HEIGHT;
@@ -1560,14 +1797,18 @@ namespace scene {
                 for (int z = zRange.x; z < zRange.y; z++) {
                     for (int x = xRange.x; x < xRange.y; x++) {
 
-                        if (isCoordOutBoundaries(x, y, z)) {
-                            continue;
-                        } else if (terrain.at(x).at(y).at(z).air) {
+                        if (isCoordOutBoundaries(x, y, z) || terrain.at(x).at(y).at(z).air) {
                             continue;
                         }
                         
                         if (terrain.at(x).at(y).at(z).transparent) {
-                            transparentBlocks.push_back(glm::vec3(x, y, z));
+                            terrain.at(x).at(y).at(z).culledFaces = {true, true, true, true, true, true};
+
+                            getHiddenFaces(x, y, z, terrain.at(x).at(y).at(z).culledFaces, false);
+
+                            if (utility::countFalses(terrain.at(x).at(y).at(z).culledFaces) < 6) {
+                                listOfTransBlocksToRender.push_back(&terrain.at(x).at(y).at(z));
+                            }
                             continue;
                         }
 
@@ -1578,22 +1819,14 @@ namespace scene {
                         getHiddenFaces(x, y, z, terrain.at(x).at(y).at(z).culledFaces, true);
 
                         if (utility::countFalses(terrain.at(x).at(y).at(z).culledFaces) < 6) {
-                            listOfBlocksToRender.push_back(&terrain.at(x).at(y).at(z));
+                            if (strcmp(terrain.at(x).at(y).at(z).name.c_str(), "slime_block") == 0) {
+                                listOfShinyBlocksToRender.push_back(&terrain.at(x).at(y).at(z));
+                            } else {
+                                listOfBlocksToRender.push_back(&terrain.at(x).at(y).at(z));
+                            }
                         }
 
                     }
-                }
-            }
-
-            // Draws transparent blocks last
-            for (auto i : transparentBlocks) {
-                
-                terrain.at(i.x).at(i.y).at(i.z).culledFaces = {true, true, true, true, true, true};
-
-                getHiddenFaces(i.x, i.y, i.z, terrain.at(i.x).at(i.y).at(i.z).culledFaces, false);
-
-                if (utility::countFalses(terrain.at(i.x).at(i.y).at(i.z).culledFaces) < 6) {
-                    listOfBlocksToRender.push_back(&terrain.at(i.x).at(i.y).at(i.z));
                 }
             }
 

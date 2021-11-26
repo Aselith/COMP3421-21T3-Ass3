@@ -11,6 +11,7 @@ uniform sampler2D bloomBlur;
 uniform int hdr;
 uniform float exposure;
 
+
 // 0 - off
 // 1 - Exposure
 // 2 - Filmic
@@ -30,10 +31,6 @@ vec3 tonemapFilmic(vec3 color) {
 vec3 tonemapReinhard(vec3 color) {
     vec3 result = color / (color + vec3(1.0));
     return result;
-}
-
-vec3 tonemapFun(vec3 color) {
-    return vec3(1.0 - color.r, 1.0 - color.g, 1.0 - color.b);
 }
 
 vec3 tonemapLotte(vec3 color) {
@@ -58,6 +55,12 @@ vec3 tonemapUnreal(vec3 color) {
     // Attribute: https://github.com/dmnsgn/glsl-tone-map/blob/master/unreal.glsl
     return pow(color / (color + 0.155) * 1.019, vec3(GAMMA));
 }
+
+vec3 tonemapNeg(vec3 color) {
+    return vec3(1.0 - color.r, 1.0 - color.g, 1.0 - color.b);
+}
+
+
 
 void main() {
 
@@ -90,7 +93,7 @@ void main() {
             result = tonemapUnreal(result);
             break;
         case 6:
-            result = tonemapFun(result);
+            result = tonemapNeg(result);
             break;
     }
 

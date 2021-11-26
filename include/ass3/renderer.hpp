@@ -42,7 +42,7 @@ namespace renderer {
 		glm::vec3 sunriseColor = glm::vec3((float)247/255, (float)205/255, (float)93/255);
 		glm::vec3 dayColor = glm::vec3(1, 1, 1);
 		glm::vec3 sunsetColor = glm::vec3((float)250/255, (float)214/255, (float)165/255);
-		glm::vec3 nightColor = glm::vec3((float)25/255, (float)25/255, (float)112/255);
+		glm::vec3 nightColor = glm::vec3((float)69/255, (float)69/255, (float)133/255);
 
 		GLuint program;
 		
@@ -59,6 +59,7 @@ namespace renderer {
 		GLint uTex_loc;
 		GLint uSpec_loc;
 		GLint uDepth_loc;
+		GLuint uCube_loc;
 
 		GLint mat_tex_factor_loc;
 		GLint mat_specular_factor_loc;

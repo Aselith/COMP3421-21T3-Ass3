@@ -25,8 +25,9 @@ const int WIN_WIDTH = 1280;
 const int SHADOW_WIDTH = 8192;
 const int SHADOW_HEIGHT = 8192;
 const float W_PRESS_SPACE = 0.4f;
-const int BLOOM_INTENSITY = 15;
+const int BLOOM_INTENSITY = 30;
 const int TOTAL_TONE_MAPS = 7;
+const int TOTAL_KERNELS = 7;
 
 // 0 -> Basic flat dirt world
 // 1 -> Wooly world
@@ -38,7 +39,8 @@ struct pointerInformation {
     renderer::renderer_t *defaultShader;
     float frameRate = 0, lastWPressed = 0;
     float exposureLevel = 10.0f, averageIlluminance = 0;
-    GLint hdrType = 1;
+    GLint hdrType = 1, kernelType = 0;
+    bool enableExperimental = false;
 };
 
 struct dayNightTextureSystem {
@@ -47,27 +49,45 @@ struct dayNightTextureSystem {
     GLuint sunset = texture_2d::loadCubemap("./res/textures/skybox/sunset");
     GLuint night = texture_2d::loadCubemap("./res/textures/skybox/night");
     GLuint sunrise = texture_2d::loadCubemap("./res/textures/skybox/sunrise");
+    
     public:
-
+    GLuint practice = texture_2d::loadCubemap("./res/textures/tut_skybox");
     GLuint prevTex, currTex;
 
     float updatePrevCurr(float dayProgress) {
         dayProgress = fmod(dayProgress, 1.0f);
-        if (dayProgress >= 0.0f && dayProgress < 0.25f) {
+        if (utility::isInRange(dayProgress, 0.0f, 0.2f)) {
             prevTex = sunrise;
             currTex = day;
-        } else if (dayProgress >= 0.25f && dayProgress < 0.5f) {
+            return dayProgress / 0.2f;
+        } else if (utility::isInRange(dayProgress, 0.2f, 0.3f)) {
+            prevTex = day;
+            currTex = day;
+            return 1.0f;
+        } else if (utility::isInRange(dayProgress, 0.3f, 0.5f)) {
             prevTex = day;
             currTex = sunset;
-        } else if (dayProgress >= 0.5f && dayProgress < 0.75f) {
+            return (dayProgress - 0.3f) / 0.2f;
+        } else if (utility::isInRange(dayProgress, 0.5f, 0.7f)) {
             prevTex = sunset;
             currTex = night;
-        } else{
+            return (dayProgress - 0.5f) / 0.2f;
+        } else if (utility::isInRange(dayProgress, 0.7f, 0.8f)) {
+            prevTex = night;
+            currTex = night;
+            return 1.0f;
+        } else {
             prevTex = night;
             currTex = sunrise;
+            return (dayProgress - 0.8f) / 0.2f;
         }
+    }
 
-        return fmod(dayProgress, 0.25f) / 0.25f;
+    void deleteTextures() {
+        texture_2d::destroy(day);
+        texture_2d::destroy(night);
+        texture_2d::destroy(sunset);
+        texture_2d::destroy(sunrise);
     }
 
 };
@@ -418,6 +438,9 @@ int main() {
     renderer::renderer_t skyboxShader;
     skyboxShader.createProgram("skybox");
 
+    renderer::renderer_t cubeReflectShader;
+    cubeReflectShader.createProgram("cubeReflection");
+
     dayNightTextureSystem dayNightCalculator;
 
     // SETTING UP ALL CALLBACKS
@@ -484,6 +507,10 @@ int main() {
                     glfwRestoreWindow(win);
                 }  
                 break;
+            case GLFW_KEY_COMMA:
+                if (action != GLFW_PRESS) return;
+                info->enableExperimental = !info->enableExperimental;
+                break;
             case GLFW_KEY_F1:
                 if (action != GLFW_PRESS) return;
                 info->gameWorld->hideScreen = !info->gameWorld->hideScreen;
@@ -513,7 +540,36 @@ int main() {
                         std::cout << "\"Unreal Tone Mapping\"\n";
                         break;
                     case 6:
-                        std::cout << "\"Fun Tone Mapping\"\n";
+                        std::cout << "\"Neg Tone Mapping\"\n";
+                        break;
+                }
+                break;
+            case GLFW_KEY_T:
+                if (action != GLFW_PRESS) return;
+                info->kernelType++;
+                info->kernelType %= TOTAL_KERNELS;
+                std::cout << "Filter set to ";
+                switch (info->kernelType) {
+                    case 0:
+                        std::cout << "\"None\"\n";
+                        break;
+                    case 1:
+                        std::cout << "\"Edge Kernal\"\n";
+                        break;
+                    case 2:
+                        std::cout << "\"Emboss Kernal\"\n";
+                        break;
+                    case 3:
+                        std::cout << "\"Sharpen Kernal\"\n";
+                        break;
+                    case 4:
+                        std::cout << "\"Right Sobel Kernal\"\n";
+                        break;
+                    case 5:
+                        std::cout << "\"Blur Kernal\"\n";
+                        break;
+                    case 6:
+                        std::cout << "\"Pixelated\"\n";
                         break;
                 }
                 break;
@@ -576,33 +632,6 @@ int main() {
     /**
      * Creating post processing effects
      */
-
-    // HDR
-    /*
-    GLuint hdrFBO, hdrBufferTexID;
-    glGenFramebuffers(1, &hdrFBO);
-    glBindFramebuffer(1, hdrFBO);
-
-    glGenTextures(1, &hdrBufferTexID);
-    glBindTexture(GL_TEXTURE_2D, hdrBufferTexID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    GLuint rboDepth;
-    glGenRenderbuffers(1, &rboDepth);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WIN_WIDTH, WIN_HEIGHT);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrBufferTexID, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cout << "Framebuffer not complete!\n";
-    }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    */
-    // END OF HDR CREATION
 
     // REGULAR UNTAMPERED SCENE
     GLuint untamperedFBO, untamperedTexID, untamperedRBO;
@@ -674,18 +703,18 @@ int main() {
     }
 
     // Final frame buffer
-    GLuint finalFrameFBO, finalFrameColor;
+    GLuint finalFrameFBO, finalFrameTexID;
     glGenFramebuffers(1, &finalFrameFBO);
-    glGenTextures(1, &finalFrameColor);
+    glGenTextures(1, &finalFrameTexID);
 
     glBindFramebuffer(GL_FRAMEBUFFER, finalFrameFBO);
-    glBindTexture(GL_TEXTURE_2D, finalFrameColor);
+    glBindTexture(GL_TEXTURE_2D, finalFrameTexID);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, finalFrameColor, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, finalFrameTexID, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "Framebuffer not complete!\n";
     }
@@ -777,12 +806,13 @@ int main() {
         lightProjection = glm::ortho(-worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, -worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, nearPlane, farPlane);
         lightView = glm::lookAt(sunPosition, {playerPosPtr->x, playerPosPtr->y, playerPosPtr->z}, glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
-        glUniformMatrix4fv(shadowShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
+        glUniformMatrix4fv(shadowShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        // Drawing
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-        glClear(GL_DEPTH_BUFFER_BIT);
-        gameWorld.drawWorld(shadowShader);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            gameWorld.drawWorld(shadowShader);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Render scene as normal, using the shadow map as the 3rd texture
@@ -798,45 +828,65 @@ int main() {
 
         // Drawing world without any filters
         glBindFramebuffer(GL_FRAMEBUFFER, untamperedFBO);
+
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, dayNightCalculator.currTex);
+
+            defaultShader.setInt("forceBlack", false);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            defaultShader.activate();
+            defaultShader.setInt("affectedByShadows", true);
             glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, depthMapTexID);
-            defaultShader.activate();
             gameWorld.drawWorld(defaultShader, false);
+
+            if (info.enableExperimental) {
+                cubeReflectShader.activate();
+                gameWorld.drawShinyTerrain(
+                    view_proj,
+                    cubeReflectShader,
+                    defaultShader,
+                    skyboxShader,
+                    {dayNightCalculator.prevTex, dayNightCalculator.currTex},
+                    blendValue,
+                    {WIN_WIDTH, WIN_HEIGHT},
+                    dayNightCalculator.practice
+                );
+            } else {
+                gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, false);
+            }
+
             // Drawing skybox
-            glDepthFunc(GL_LEQUAL);
             blendValue = dayNightCalculator.updatePrevCurr(gameWorld.worldTime);
-            skyboxShader.activate();
-            auto skyBoxView = glm::mat4(glm::mat3(gameWorld.getCurrCamera()->get_view()));
-            skyboxShader.setMat4("view", skyBoxView);
-            skyboxShader.setMat4("projection", defaultShader.projection);
-            glBindVertexArray(gameWorld.skyBox.mesh.vao);
-            skyboxShader.setInt("prevSkybox", 0);
-            skyboxShader.setInt("currSkybox", 1);
-            skyboxShader.setFloat("blendFactor", blendValue);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, dayNightCalculator.prevTex);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, dayNightCalculator.currTex);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-            glBindVertexArray(0);
-            glDepthFunc(GL_LESS);
+            gameWorld.drawSkyBox(skyboxShader, defaultShader.projection, dayNightCalculator.prevTex, dayNightCalculator.currTex, blendValue);
+
+            // Drawing transparent block
+
+            defaultShader.activate();
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, depthMapTexID);
+            
+            gameWorld.drawTransTerrain(glm::mat4(1.0f), defaultShader, false);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Drawing the world again but with the bloom on only
         glBindFramebuffer(GL_FRAMEBUFFER, onlyBloomFBO);
-        glClearColor(0, 0, 0, 1);
-        defaultShader.activate();
-        gameWorld.drawWorld(defaultShader, true);
+            glClearColor(0, 0, 0, 1);
+            defaultShader.activate();
+            defaultShader.setInt("forceBlack", true);
+            gameWorld.drawWorld(defaultShader, true);
+            gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, false);
+            defaultShader.setInt("forceBlack", false);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Drawing the recently bloom only scene to the ping pong frame
         glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[0]);
-        normalShader.activate();
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, onlyBloomTexID);
-        utility::renderQuad();
+            normalShader.activate();
+            normalShader.setInt("kernelType", 0);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, onlyBloomTexID);
+            utility::renderQuad();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Blurs the scene in pingpong buffer
@@ -846,9 +896,7 @@ int main() {
             glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
             blurShader.setInt("horizontal", horizontal);
             glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!horizontal]);
-
             utility::renderQuad();
-
             horizontal = !horizontal;
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -857,30 +905,31 @@ int main() {
 
         // Drawing scene as usual with HDR + Bloom
         glBindFramebuffer(GL_FRAMEBUFFER, finalFrameFBO);
-        glClear(GL_COLOR_BUFFER_BIT);
-        hdrShader.activate();
-        hdrShader.setInt("hdr", info.hdrType);
-        hdrShader.setFloat("exposure", info.exposureLevel);
-        hdrShader.setInt("scene", 0);
-        hdrShader.setInt("bloomBlur", 1);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, untamperedTexID);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!horizontal]);
-        utility::renderQuad();
+            glClear(GL_COLOR_BUFFER_BIT);
+            hdrShader.activate();
+            hdrShader.setInt("hdr", info.hdrType);
+            hdrShader.setFloat("exposure", info.exposureLevel);
+            hdrShader.setInt("scene", 0);
+            hdrShader.setInt("bloomBlur", 1);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, untamperedTexID);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!horizontal]);
+            utility::renderQuad();
 
-        glActiveTexture(GL_TEXTURE0);
-        if (!gameWorld.cutsceneEnabled) {
-            glClear(GL_DEPTH_BUFFER_BIT);
-            defaultShader.activate();
-            gameWorld.drawScreen(glm::mat4(1.0f), defaultShader);
-        }
+            // Drawing the HUD
+            glActiveTexture(GL_TEXTURE0);
+            if (!gameWorld.cutsceneEnabled) {
+                glClear(GL_DEPTH_BUFFER_BIT);
+                defaultShader.activate();
+                defaultShader.setInt("affectedByShadows", false);
+                gameWorld.drawScreen(glm::mat4(1.0f), defaultShader);
+            }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 
         // Auto adjusting the exposure values
         if (info.hdrType == 1) {
-            info.averageIlluminance = utility::findIlluminance(WIN_WIDTH, WIN_HEIGHT, finalFrameColor);
+            info.averageIlluminance = utility::findIlluminance(WIN_WIDTH, WIN_HEIGHT, finalFrameTexID);
             auto correctExposure = 0.5 / info.averageIlluminance * 1.8;
             if (utility::roundUp(info.exposureLevel, 2) != utility::roundUp(correctExposure, 2)) {
                 info.exposureLevel = utility::lerp(info.exposureLevel, correctExposure, 0.05f);
@@ -889,20 +938,18 @@ int main() {
             info.exposureLevel = 2.0f;
         }
 
-
         // Drawing the final frame
         utility::resizeWindow(WIN_WIDTH, WIN_HEIGHT, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
         normalShader.activate();
+        normalShader.setInt("kernelType", info.kernelType);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, finalFrameColor);
+        glBindTexture(GL_TEXTURE_2D, finalFrameTexID);
         utility::renderQuad();
-        
 
         glfwSwapBuffers(window);
         glfwPollEvents();
 
-        // Not using frame limiter
         // not entirely correct as a frame limiter, but close enough
         // it would be more correct if we knew how much time this frame took to render
         // and calculated the distance to the next "ideal" time to render and only slept that long
@@ -916,8 +963,22 @@ int main() {
     hdrShader.deleteProgram();
     normalShader.deleteProgram();
     blurShader.deleteProgram();
+    skyboxShader.deleteProgram();
     gameWorld.destroyEverthing();
     chicken3421::delete_opengl_window(window);
+
+    chicken3421::delete_framebuffer(finalFrameFBO);
+    texture_2d::destroy(finalFrameTexID);
+    chicken3421::delete_framebuffer(untamperedFBO);
+    chicken3421::delete_renderbuffer(untamperedRBO);
+    texture_2d::destroy(untamperedTexID);
+    chicken3421::delete_framebuffer(onlyBloomFBO);
+    chicken3421::delete_renderbuffer(onlyBloomRBO);
+    texture_2d::destroy(onlyBloomTexID);
+    chicken3421::delete_framebuffer(pingpongFBO[0]);
+    chicken3421::delete_framebuffer(pingpongFBO[1]);
+    texture_2d::destroy(pingpongBuffer[0]);
+    texture_2d::destroy(pingpongBuffer[1]);
 
     std::cout << "Good bye!\n";
 

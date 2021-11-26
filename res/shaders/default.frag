@@ -57,6 +57,8 @@ uniform DirLight uSun;
 uniform vec3 uCameraPos;
 uniform SpotLight allLights[MAX_LIGHTS];
 uniform bool isIlluminating;
+uniform bool affectedByShadows;
+uniform bool forceBlack;
 
 vec3 rgbToLinear(vec3 col) {
     return pow(col, vec3(2.2));
@@ -67,17 +69,22 @@ vec3 linearToRgb(vec3 col) {
 }
 
 float calcShadow() {
+    if (!affectedByShadows) {
+        return 1.0f;
+    }
     vec3 pos = fragPosLightSpace.xyz * 0.5 + 0.5;
     pos.z = pos.z > 1.0 ? 1.0 : pos.z;
     
-    float biasLight = max(0.0105 * (1.0 - dot(-uSun.direction, vNormal)), 0.005);
+    // Bias correcting
+    float biasLight = max(0.0109 * (1.0 - dot(-uSun.direction, vNormal)), 0.005);
 
+    // PCF
     float returnShadowValue = 0.0f;
     vec2 texelSize = 1.0f / textureSize(uDepthMap, 0);
-    float totalValues = 0.0f, totalSamples = 1.0f;
-
-    for (float x = -totalSamples; x <= totalSamples; x++) {
-        for (float y = -totalSamples; y <= totalSamples; y++) {
+    float totalValues = 0.0f, sampleSize = 1.0f;
+    
+    for (float x = -sampleSize; x <= sampleSize; x++) {
+        for (float y = -sampleSize; y <= sampleSize; y++) {
             totalValues++;
             float depth = texture(uDepthMap, pos.xy + vec2(x, y) * texelSize).r;
             returnShadowValue += (depth + biasLight) < pos.z ? 0.0f : 1.0f;
@@ -88,19 +95,17 @@ float calcShadow() {
 
 vec3 calcPointLight(SpotLight light, vec3 mat_diffuse, vec3 mat_specular) {
     vec3 ambient = light.ambient * mat_diffuse * uMat.ambient;
-    vec3 light_direction = normalize(vPosition - light.position);
-    vec3 diffuse = light.diffuse * mat_diffuse * max(0,dot(-light_direction, vNormal));
-    vec3 reflected = reflect(light_direction, vNormal);
+    vec3 lightDir = normalize(light.position - vPosition);
+    vec3 diffuse = light.diffuse * mat_diffuse * max(0,dot(lightDir, vNormal));
     
     vec3 view = normalize(uCameraPos - vPosition);
    
     // Adjusted to use Bling Phong Model
-    vec3 lightDir   = normalize(light.position - vPosition);
     vec3 halfwayDir = normalize(lightDir + view);
     vec3 specular = light.specular * mat_specular * pow(max(dot(vNormal, halfwayDir), 0), uMat.phongExp);
     // Old code using original phong model
+    // vec3 reflected = reflect(-lightDir, vNormal);
     // vec3 specular = light.specular * mat_specular * pow(max(0, dot(reflected, view)), uMat.phongExp);
-
 
     float distance = distance(light.position, vPosition);
     float attenuation = 1.0f / (1.0f + (0.2 * distance * distance));
@@ -118,10 +123,9 @@ void main() {
     } else {
         // Calculating diffuse by lighting
         vec4 color = mix(uMat.color, texture(uTex, vTexCoord), uMat.texFactor);
+        if (forceBlack) color = vec4(0.0f, 0.0f, 0.0f, 1.0f);
         color.rgb = rgbToLinear(color.rgb);
-
         
-
         vec3 ambient = rgbToLinear(uSun.color) * pow(uSun.ambient, 2.2);
         float lightNormal = dot(-uSun.direction, vNormal);
         vec3 diffuse = rgbToLinear(uSun.color) * rgbToLinear(uMat.diffuse) * max(0, lightNormal) * 1.1f;

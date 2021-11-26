@@ -190,6 +190,9 @@ namespace shapes {
         return finalProduct;
     }
 
+    static_mesh::mesh_t createSeaSurface() {
+
+    }
 
     static_mesh::mesh_t createFlatSquare(bool invert) {
         static_mesh::mesh_template_t square;

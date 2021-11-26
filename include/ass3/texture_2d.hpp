@@ -24,6 +24,8 @@ namespace texture_2d {
 
     GLuint loadCubemap(std::string filePath);
 
+    GLuint createEmptyCubeMap(int size);
+
     /**
      * @brief Destroys the given texture
      * 
