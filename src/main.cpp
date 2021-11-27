@@ -92,6 +92,29 @@ struct dayNightTextureSystem {
 
 };
 
+struct waterTextures {
+    const float frameLen = 0.15f;
+    GLuint frames[32];
+    GLuint currFrame = 0;
+    GLfloat frame;
+    std::string filepath = "./res/textures/water/water_";
+    waterTextures() {
+        for (int i = 0; i < 32; i++) {
+            frames[i] = texture_2d::init(filepath + std::to_string(i) + ".png");
+        }
+    }
+
+    GLuint getFrame(float dt) {
+        frame += dt;
+        if (frame > frameLen) {
+            frame -= frameLen;
+            currFrame++;
+            currFrame %= 32;
+        }
+        return frames[currFrame];
+    }
+};
+
 int main() {
 
     // Printing welcome message
@@ -441,7 +464,11 @@ int main() {
     renderer::renderer_t cubeReflectShader;
     cubeReflectShader.createProgram("cubeReflection");
 
+    renderer::renderer_t waterShader;
+    waterShader.createProgram("water");
+
     dayNightTextureSystem dayNightCalculator;
+    waterTextures waterCalculator;
 
     // SETTING UP ALL CALLBACKS
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -809,7 +836,7 @@ int main() {
 
         glUniformMatrix4fv(shadowShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-        // Drawing
+        // Drawing the world in the eyes of the shadows
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
             glClear(GL_DEPTH_BUFFER_BIT);
             gameWorld.drawWorld(shadowShader);
@@ -829,12 +856,11 @@ int main() {
         // Drawing world without any filters
         glBindFramebuffer(GL_FRAMEBUFFER, untamperedFBO);
 
-            glActiveTexture(GL_TEXTURE3);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, dayNightCalculator.currTex);
+            defaultShader.activate();
 
-            defaultShader.setInt("forceBlack", false);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             defaultShader.activate();
+            defaultShader.setInt("forceBlack", false);
             defaultShader.setInt("affectedByShadows", true);
             glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, depthMapTexID);
@@ -860,8 +886,14 @@ int main() {
             blendValue = dayNightCalculator.updatePrevCurr(gameWorld.worldTime);
             gameWorld.drawSkyBox(skyboxShader, defaultShader.projection, dayNightCalculator.prevTex, dayNightCalculator.currTex, blendValue);
 
-            // Drawing transparent block
+            // Drawing the water
+            waterShader.activate();
+            waterShader.setMat4("uViewProj", view_proj);
+            waterShader.setMat4("uModel", utility::findModelMatrix(gameWorld.seaSurface.translation, gameWorld.seaSurface.scale, gameWorld.seaSurface.rotation));
+            gameWorld.seaSurface.textureID = waterCalculator.getFrame(dt);
+            scene::drawElement(&gameWorld.seaSurface, glm::mat4(1.0f), waterShader);
 
+            // Drawing transparent block
             defaultShader.activate();
             glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, depthMapTexID);
@@ -878,6 +910,12 @@ int main() {
             gameWorld.drawWorld(defaultShader, true);
             gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, false);
             defaultShader.setInt("forceBlack", false);
+            // Drawing the water
+            waterShader.activate();
+            waterShader.setMat4("uViewProj", view_proj);
+            waterShader.setMat4("uModel", utility::findModelMatrix(gameWorld.seaSurface.translation, gameWorld.seaSurface.scale, gameWorld.seaSurface.rotation));
+            gameWorld.seaSurface.textureID = waterCalculator.getFrame(dt);
+            scene::drawElement(&gameWorld.seaSurface, glm::mat4(1.0f), waterShader);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Drawing the recently bloom only scene to the ping pong frame

@@ -218,6 +218,15 @@ namespace scene {
         return square;
     }
 
+    node_t createSeaSurface(GLuint texID, int width) {
+
+        node_t square;
+        square.mesh = shapes::createSeaSurface(width);
+        square.textureID = texID;
+        square.air = false;
+        return square;
+    }
+
     node_t createSkyBox() {
         node_t skyBox;
         skyBox.mesh = shapes::createSkybox();

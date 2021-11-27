@@ -190,8 +190,32 @@ namespace shapes {
         return finalProduct;
     }
 
-    static_mesh::mesh_t createSeaSurface() {
+    static_mesh::mesh_t createSeaSurface(int width) {
+        static_mesh::mesh_template_t square;
+        auto size = width / 2;
+        square.positions = {
 
+            {-size, 0.0,-size},
+            { size, 0.0,-size},
+            { size, 0.0, size},
+            {-size, 0.0, size},
+            
+        };
+
+        square.tex_coords = {
+
+            {  0,  width},
+            {  width,  width},
+            {  width,  0},
+            {  0,  0},
+            
+        };
+
+        square.indices = {
+            0, 2, 1,
+            0, 3, 2,
+        };
+        return static_mesh::init(square);
     }
 
     static_mesh::mesh_t createFlatSquare(bool invert) {

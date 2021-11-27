@@ -32,6 +32,16 @@ namespace utility {
 		return value >= min && value < max;
 	}
 
+	glm::mat4 findModelMatrix(glm::vec3 trans, glm::vec3 scale, glm::vec3 rot, glm::mat4 parentMat) {
+		glm::mat4 model = parentMat;
+		model *= glm::translate(glm::mat4(1.0), trans);
+        model *= glm::scale(glm::mat4(1.0), scale);
+        model *= glm::rotate(glm::mat4(1.0), glm::radians(rot.z), glm::vec3(0, 0, 1));
+        model *= glm::rotate(glm::mat4(1.0), glm::radians(rot.y), glm::vec3(0, 1, 0));
+        model *= glm::rotate(glm::mat4(1.0), glm::radians(rot.x), glm::vec3(1, 0, 0));
+		return model;
+	}
+
 	GLfloat findIlluminance(int screenWidth, int screenHeight, GLuint frame) {
 		/*
 		OLD CODE TO FINDING LUMINESCENE, REPLACED WITH MIPMAPPING TECHNIQUE

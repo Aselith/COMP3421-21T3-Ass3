@@ -40,6 +40,8 @@ namespace utility {
      */
     bool isInRange(float value, float min, float max);
 
+    glm::mat4 findModelMatrix(glm::vec3 trans, glm::vec3 scale, glm::vec3 rot, glm::mat4 parentMat = glm::mat4(1.0f));
+
     /**
      * @brief 
      * 

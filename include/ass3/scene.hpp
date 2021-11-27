@@ -28,6 +28,7 @@ namespace scene {
     const float PLAYER_RADIUS   = 0.25f; // 0.25
     const float SCREEN_DISTANCE = 0.25f;
     const int   REFLECTION_SIZE = 2560;
+    const int   SEA_LEVEL       = -5;
 
 
     struct node_t {
@@ -328,6 +329,8 @@ namespace scene {
      */
     node_t createFlatSquare(GLuint texID, bool invert);
 
+    node_t createSeaSurface(GLuint texID, int width);
+
     /**
      * @brief Create a Sky Box object
      * 
@@ -386,6 +389,7 @@ namespace scene {
         node_t highlightedBlock;
         node_t bed;
         node_t skyBox;
+        node_t seaSurface;
         
         std::vector<blockData> hotbar;
         std::vector<blockData> hotbarSecondary;
@@ -417,6 +421,12 @@ namespace scene {
             bed = createBedPlayer(texture_2d::init("./res/textures/blocks/bed.png"), playerTex);
 
             GLuint flyingIcon = texture_2d::init("./res/textures/flying_mode.png");
+
+            // SETTING UP SEA FLOOR
+            seaSurface = createSeaSurface(0, 10 * worldWidth);
+            seaSurface.translation.x = worldWidth / 2.0f;
+            seaSurface.translation.z = worldWidth / 2.0f;
+            seaSurface.translation.y += SEA_LEVEL;
 
             // SETTING UP CENTRE OF WORLD SCENE GRAPH
             // Setting up moon phases
@@ -1328,7 +1338,7 @@ namespace scene {
 
             // World boundaries. Respawns when the y co-ordinate goes too low
             // || playerCamera.pos.y > WORLD_HEIGHT - 1
-            if (playerCamera.pos.y - eyeLevel < -1 * (int)WORLD_HEIGHT) {
+            if (playerCamera.pos.y - eyeLevel < SEA_LEVEL) {
                 std::cout << "Respawned, you went too low!\n";
 
                 findRespawnPosition(renderInfo);
@@ -1488,6 +1498,8 @@ namespace scene {
                 drawElement(&bed, glm::mat4(1.0f), renderInfo);
                 renderInfo.setInt("forceBlack", false);
             }
+
+            //drawElement(&seaSurface, glm::mat4(1.0f), renderInfo);
             return;
         }
 

@@ -25,6 +25,8 @@ namespace shapes {
 
     static_mesh::mesh_t createSkybox();
 
+    static_mesh::mesh_t createSeaSurface(int width);
+
     /**
      * @brief Create a mesh for a Minecraft bed
      * 
