@@ -10,6 +10,8 @@ uniform sampler2D bloomBlur;
 
 uniform int hdr;
 uniform float exposure;
+uniform bool isUnderwater;
+uniform float cycle;
 
 
 // 0 - off
@@ -61,12 +63,17 @@ vec3 tonemapNeg(vec3 color) {
 }
 
 
-
 void main() {
-
-    vec3 hdrColor = texture(scene, vTexCoord).rgb;      
-    vec3 bloomColor = texture(bloomBlur, vTexCoord).rgb;
-
+    vec3 hdrColor, bloomColor;
+    float value = 12 * (vTexCoord.y - cycle);
+    if (isUnderwater) {
+        hdrColor = texture(scene, 0.7f * vec2(vTexCoord.x + 0.05 * sin(value), vTexCoord.y)).rgb;      
+        bloomColor = texture(bloomBlur, 0.7f *vec2(vTexCoord.x + 0.05 * sin(value), vTexCoord.y)).rgb;
+    } else {
+        hdrColor = texture(scene, vTexCoord).rgb;      
+        bloomColor = texture(bloomBlur, vTexCoord).rgb;
+    }
+    
     if (hdr != 0) {
         // Apply the full bloom color if hdr is not set to off
         hdrColor += bloomColor;
@@ -75,6 +82,11 @@ void main() {
     }
     
     vec3 result = hdrColor;
+
+    if (isUnderwater) {
+        result = mix(vec4(result, 1.0), vec4(49.0 / 255.0, 83.0 / 255.0, 152.0 / 255.0, 1.0), 0.5).rgb;
+    }
+
     // tone mapping
     switch (hdr) {
         case 1:
@@ -96,6 +108,6 @@ void main() {
             result = tonemapNeg(result);
             break;
     }
-
     FragColor = vec4(result, 1.0);
+    
 }

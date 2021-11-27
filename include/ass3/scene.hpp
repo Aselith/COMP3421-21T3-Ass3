@@ -28,7 +28,7 @@ namespace scene {
     const float PLAYER_RADIUS   = 0.25f; // 0.25
     const float SCREEN_DISTANCE = 0.25f;
     const int   REFLECTION_SIZE = 2560;
-    const int   SEA_LEVEL       = -5;
+    const int   VOID_LEVEL      = -5;
 
 
     struct node_t {
@@ -84,6 +84,7 @@ namespace scene {
         scene::node_t *rightArmNodePtrs;
         scene::node_t *swingArmNodePtrs;
         scene::node_t *leftArmNodePtrs;
+        scene::node_t *blockInHandPtrs;
 
         void initialise(GLuint playerTexID, GLuint blockTex) {
 
@@ -144,7 +145,9 @@ namespace scene {
             blockInHand.rotation.z += 45.0f;
             blockInHand.rotation.x += 45.0f;
             blockInHand.rotation.y += 45.0f;
-            playerRightArm.children.push_back(blockInHand);
+            scene::node_t fluff;
+            blockInHand.children.push_back(fluff); 
+            playerRightArm.children.push_back(blockInHand);  
 
             rightArmNode.children.push_back(playerRightArm);
             rightArmNode.translation.x -= PIXEL_SIZE * 4; // Push to the right position
@@ -172,6 +175,8 @@ namespace scene {
             rightArmNodePtrs = &positionInWorld.children.at(3);
             leftLegNodePtrs = &positionInWorld.children.at(4);
             rightLegNodePtrs = &positionInWorld.children.at(5);
+            blockInHandPtrs = &positionInWorld.children.at(3).children.at(0).children.at(0);
+            std::cout << rightArmNodePtrs << " " << blockInHandPtrs << "\n";
         }
 
         void tiltHead(float headPitch) {
@@ -209,6 +214,12 @@ namespace scene {
             }
             // Left arm
             leftArmNodePtrs->rotation.z = utility::cubicBezier(controlPointIdle, idleAnimationCycle).y;
+        }
+
+        void changeBlockInHandTex(GLuint texID, GLuint specID) {
+            blockInHandPtrs->textureID = texID;
+            blockInHandPtrs->specularID = specID;
+            return;
         }
 
         void walkAnimation(float dt, bool runningMode) {
@@ -361,6 +372,7 @@ namespace scene {
 
         size_t worldWidth = 110;
         const size_t WORLD_HEIGHT = 50;
+        size_t seaSize = 0;
         
         playerModel player;
         GLfloat worldTime = 0;
@@ -368,8 +380,8 @@ namespace scene {
         float eyeLevel = 1.0f;
         bool shiftMode = false;
         float walkingMultiplier = 0.5f;
-        bool cutsceneEnabled = false;
-        player::playerPOV playerCamera, cutsceneCamera;
+        bool cutsceneEnabled = false, useReflectionCam = false;
+        player::playerPOV playerCamera, cutsceneCamera, reflectionCamera;
         glm::vec3 oldPos, oldHandPos, oldHandRotation, lastRenderedPos;
         int increments = 200;
         int playerReachRange = 4 * increments;
@@ -423,10 +435,11 @@ namespace scene {
             GLuint flyingIcon = texture_2d::init("./res/textures/flying_mode.png");
 
             // SETTING UP SEA FLOOR
-            seaSurface = createSeaSurface(0, 10 * worldWidth);
+            seaSize = 5 * worldWidth;
+            seaSurface = createSeaSurface(0, seaSize);
             seaSurface.translation.x = worldWidth / 2.0f;
             seaSurface.translation.z = worldWidth / 2.0f;
-            seaSurface.translation.y += SEA_LEVEL;
+            seaSurface.translation.y = VOID_LEVEL;
 
             // SETTING UP CENTRE OF WORLD SCENE GRAPH
             // Setting up moon phases
@@ -644,10 +657,34 @@ namespace scene {
          * @return player::playerPOV* 
          */
         player::playerPOV *getCurrCamera() {
-            if (cutsceneEnabled) {
+            if (useReflectionCam) {
+                return &reflectionCamera;
+            } else if (cutsceneEnabled) {
                 return &cutsceneCamera;
             }
             return &playerCamera;
+        }
+
+        void updateReflectionCamera() {
+            reflectionCamera.pos = getCurrCamera()->pos;
+            reflectionCamera.pos.y -= 2 * ((getCurrCamera()->pos.y) - seaSurface.translation.y);
+            
+            reflectionCamera.yaw = getCurrCamera()->yaw;
+            reflectionCamera.pitch = -getCurrCamera()->pitch;
+        }
+
+        void changeSeaLevel(int direction) {
+            if (direction > 0) {
+                seaSurface.translation.y++;
+            } else {
+                seaSurface.translation.y--;
+            }
+
+            if (seaSurface.translation.y < VOID_LEVEL) {
+                seaSurface.translation.y = VOID_LEVEL;
+            } else if (seaSurface.translation.y > 0.0f) {
+                seaSurface.translation.y = 0;
+            }
         }
 
         /**
@@ -957,6 +994,8 @@ namespace scene {
                 tempIndex++;
                 tempIndex %= hotbar.size();
             }
+
+            player.changeBlockInHandTex(hotbar[hotbarIndex].texture, hotbar[hotbarIndex].specularMap);
         }
     
         /**
@@ -1338,7 +1377,7 @@ namespace scene {
 
             // World boundaries. Respawns when the y co-ordinate goes too low
             // || playerCamera.pos.y > WORLD_HEIGHT - 1
-            if (playerCamera.pos.y - eyeLevel < SEA_LEVEL) {
+            if (playerCamera.pos.y - eyeLevel < VOID_LEVEL) {
                 std::cout << "Respawned, you went too low!\n";
 
                 findRespawnPosition(renderInfo);

@@ -6,6 +6,7 @@ layout (location = 2) in vec3 aNormal;
 
 out vec2 vTexCoord;
 out vec3 vNormal;
+out vec4 glPositionSpace;
 out vec3 vPosition;
 
 uniform mat4 uViewProj;
@@ -16,4 +17,6 @@ void main() {
     vNormal = normalize(uModel * vec4(aNormal, 0)).xyz;
     vPosition = (uModel * aPos).xyz;
     gl_Position = uViewProj * uModel * aPos;
+
+    glPositionSpace = gl_Position;
 }
