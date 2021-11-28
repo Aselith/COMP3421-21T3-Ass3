@@ -62,13 +62,17 @@ vec3 tonemapNeg(vec3 color) {
     return vec3(1.0 - color.r, 1.0 - color.g, 1.0 - color.b);
 }
 
-
 void main() {
     vec3 hdrColor, bloomColor;
     float value = 12 * (vTexCoord.y - cycle);
     if (isUnderwater) {
-        hdrColor = texture(scene, 0.7f * vec2(vTexCoord.x + 0.05 * sin(value), vTexCoord.y)).rgb;      
-        bloomColor = texture(bloomBlur, 0.7f *vec2(vTexCoord.x + 0.05 * sin(value), vTexCoord.y)).rgb;
+
+        vec2 newTexCoord = vTexCoord;
+        newTexCoord.x = newTexCoord.x + 0.01 * sin(value);
+        newTexCoord = clamp(newTexCoord, 0.001, 0.999);
+
+        hdrColor = texture(scene, newTexCoord).rgb;      
+        bloomColor = texture(bloomBlur, newTexCoord).rgb * 2;
     } else {
         hdrColor = texture(scene, vTexCoord).rgb;      
         bloomColor = texture(bloomBlur, vTexCoord).rgb;

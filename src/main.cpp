@@ -94,18 +94,26 @@ struct dayNightTextureSystem {
 
 struct waterTextures {
     const float frameLen = 0.15f;
+    const float waveSpeed = 0.06;
     GLuint frames[32];
+    GLuint blackTex, dudvMap, normalMap;
     GLuint currFrame = 0;
     GLfloat frame;
+    GLfloat waterWaveCycle = 0.0f, rippleCycle = 0.0f;
     std::string filepath = "./res/textures/water/water_";
     waterTextures() {
         for (int i = 0; i < 32; i++) {
             frames[i] = texture_2d::init(filepath + std::to_string(i) + ".png");
         }
+        blackTex = texture_2d::init("./res/textures/water/water_-1.png");
+        dudvMap = texture_2d::init("./res/textures/water/dudv.png", texture_2d::params_t{GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR});
+        normalMap = texture_2d::init("./res/textures/water/normal.png", texture_2d::params_t{GL_REPEAT, GL_REPEAT, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR});
     }
 
     GLuint getFrame(float dt) {
         frame += dt;
+        waterWaveCycle = fmod(waterWaveCycle + (dt / 3.0f), M_PI / 6.0f);
+        rippleCycle = fmod(rippleCycle + (dt * waveSpeed), 40.0f);
         if (frame > frameLen) {
             frame -= frameLen;
             currFrame++;
@@ -509,6 +517,7 @@ int main() {
                 std::cout << "Pitch: " << info->gameWorld->playerCamera.pitch << "\n";
                 std::cout << "Player Vertical Velocity: " << info->gameWorld->playerCamera.yVelocity << "\n";
                 std::cout << "Ingame Time: " << info->gameWorld->worldTime << "\n";
+                std::cout << "Sea level: " << info->gameWorld->seaSurface.translation.y << "\n";
                 std::cout << "Exposure levels: " << info->exposureLevel << "\n";
                 std::cout << "Illuminance: " << info->averageIlluminance << "\n";
                 std::cout << "Current frame rate: " << info->frameRate << " frames per second\n\n";
@@ -543,11 +552,11 @@ int main() {
                 info->gameWorld->hideScreen = !info->gameWorld->hideScreen;
                 break;
             case GLFW_KEY_LEFT_BRACKET:
-                if (action != GLFW_PRESS) return;
+                if (action == GLFW_RELEASE) return;
                 info->gameWorld->changeSeaLevel(-1);
                 break;
             case GLFW_KEY_RIGHT_BRACKET:
-                if (action != GLFW_PRESS) return;
+                if (action == GLFW_RELEASE) return;
                 info->gameWorld->changeSeaLevel(1);
                 break;
             case GLFW_KEY_R:
@@ -717,6 +726,30 @@ int main() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // END OF REFLECTION CREATION
 
+    // REFRACTION UNTAMPERED SCENE
+    GLuint waterRefractionFBO, waterRefractionTexID, waterRefractionRBO;
+    glGenFramebuffers(1, &waterRefractionFBO);
+    glBindFramebuffer(1, waterRefractionFBO);
+    glGenRenderbuffers(1, &waterRefractionRBO);
+
+    glGenTextures(1, &waterRefractionTexID);
+    glBindTexture(GL_TEXTURE_2D, waterRefractionTexID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    glBindRenderbuffer(GL_RENDERBUFFER, waterRefractionRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WIN_WIDTH, WIN_HEIGHT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, waterRefractionFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, waterRefractionTexID, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, waterRefractionRBO);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "Framebuffer not complete!\n";
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // END OF REFRACTION CREATION
+
     // FIRST STAGE OF BLOOM FRAME BUFFER
     GLuint onlyBloomFBO, onlyBloomTexID, onlyBloomRBO;
     glGenFramebuffers(1, &onlyBloomFBO);
@@ -772,8 +805,8 @@ int main() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIN_WIDTH, WIN_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, finalFrameTexID, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "Framebuffer not complete!\n";
@@ -805,7 +838,6 @@ int main() {
     float totalTime = 0.0f;
     float totalFrames = 0.0f;
     float blendValue = 0.0f;
-    float waterWaveCycle = 0.0f;
 
     glfwShowWindow(window);
     glfwFocusWindow(window);
@@ -814,13 +846,12 @@ int main() {
     glm::vec3 *playerPosPtr = &gameWorld.playerCamera.pos;
     // RENDER LOOP
     while (!glfwWindowShouldClose(window)) {
-        
+        glEnable(GL_CLIP_DISTANCE0);
         int width, height;
         glfwGetWindowSize(window, &width, &height);
 
         float dt = utility::time_delta();
 
-        waterWaveCycle = fmod(waterWaveCycle + (dt / 3.0f), M_PI / 6.0f);
 
         // Calculating frames per second
         totalTime += dt;
@@ -875,7 +906,7 @@ int main() {
         // Drawing the world in the eyes of the shadows
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
             glClear(GL_DEPTH_BUFFER_BIT);
-            gameWorld.drawWorld(shadowShader);
+            gameWorld.drawWorld(shadowShader, false, false);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Render scene as normal, using the shadow map as the 3rd texture
@@ -889,26 +920,46 @@ int main() {
         glUniformMatrix4fv(defaultShader.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
         glUniformMatrix4fv(defaultShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
-        std::vector<GLuint> twoFrameBuffers = {waterReflectionFBO, untamperedFBO};
-        bool reflection = true;
-        // Drawing world via reflection and then via untampered
-        for (auto currFBO : twoFrameBuffers) {
+        std::vector<GLuint> framebufferList = {waterReflectionFBO, waterRefractionFBO, untamperedFBO};
+
+        // Drawing world via reflection, refraction and then via untampered
+        for (auto currFBO : framebufferList) {
             glBindFramebuffer(GL_FRAMEBUFFER, currFBO);
-                if (reflection) {
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                defaultShader.activate();
+                gameWorld.drawCelestials = false;
+                if (currFBO == waterReflectionFBO) {
                     gameWorld.useReflectionCam = false;
                     gameWorld.updateReflectionCamera();
                     gameWorld.useReflectionCam = true;
+                    if (gameWorld.isUnderwater()) {
+                        // Clip above if underwater
+                        defaultShader.setVec4("plane", glm::vec4(0, -1, 0, gameWorld.seaSurface.translation.y));
+                    } else{
+                        // Clip below if not under water
+                        defaultShader.setVec4("plane", glm::vec4(0, 1, 0, -gameWorld.seaSurface.translation.y));
+                    }
+                } else if (currFBO == waterRefractionFBO) {
+                    if (!gameWorld.isUnderwater()) {
+                        // Clip above if not underwater
+                        defaultShader.setVec4("plane", glm::vec4(0, -1, 0, gameWorld.seaSurface.translation.y));
+                    } else{
+                        // Clip below if under water
+                        defaultShader.setVec4("plane", glm::vec4(0, 1, 0, -gameWorld.seaSurface.translation.y));
+                    }
+                    gameWorld.useReflectionCam = false;
                 } else {
+                    gameWorld.drawCelestials = true;
+                    defaultShader.setVec4("plane", glm::vec4(0, 1, 0, -scene::VOID_LEVEL));
                     gameWorld.useReflectionCam = false;
                 }
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                defaultShader.activate();
                 defaultShader.setMat4("uViewProj", defaultShader.projection * gameWorld.getCurrCamera()->get_view());
                 defaultShader.setInt("forceBlack", false);
                 defaultShader.setInt("affectedByShadows", true);
                 glActiveTexture(GL_TEXTURE2);
                 glBindTexture(GL_TEXTURE_2D, depthMapTexID);
-                gameWorld.drawWorld(defaultShader, false);
+                gameWorld.drawWorld(defaultShader, false, currFBO == untamperedFBO);
 
                 if (info.enableExperimental) {
                     cubeReflectShader.activate();
@@ -930,32 +981,57 @@ int main() {
                 blendValue = dayNightCalculator.updatePrevCurr(gameWorld.worldTime);
                 gameWorld.drawSkyBox(skyboxShader, defaultShader.projection, dayNightCalculator.prevTex, dayNightCalculator.currTex, blendValue);
 
-                // Drawing the water only for the non reflection fbo
-                if (!reflection) {
+                // Drawing the water only for the last draw of the world
+                // DRAWWATER 
+                if (currFBO == untamperedFBO) {
                     waterShader.activate();
+                    waterShader.setVec3("uCameraPos", gameWorld.getCurrCamera()->pos);
+                    int i = 0;
+                    for (auto light : defaultShader.allLightSources) {
+                        waterShader.setVec3("allLights[" + std::to_string(i) + "].specular", light.specular);
+                        waterShader.setVec3("allLights[" + std::to_string(i) + "].position", light.position);
+                        i++;
+                    }
+                    waterShader.setFloat("waterLevel", (GLfloat)gameWorld.seaSurface.translation.y);
+                    waterShader.setVec2("rippleCycle", {waterCalculator.rippleCycle * 1000.0f, 1000.0f});
+                    waterShader.setVec2("uPitchFactor", {abs(gameWorld.playerCamera.pitch) * 1000.0f, 90000.0f});
+                    waterShader.setInt("uTex", 9);
                     waterShader.setInt("uReflection", 10);
+                    waterShader.setInt("uRefraction", 11);
+                    waterShader.setInt("uDuDvMap", 12);
+                    waterShader.setInt("uNormalMap", 13);
                     waterShader.setMat4("uViewProj", view_proj);
                     waterShader.setMat4("uModel", utility::findModelMatrix(gameWorld.seaSurface.translation, gameWorld.seaSurface.scale, gameWorld.seaSurface.rotation));
-                    gameWorld.seaSurface.textureID = waterCalculator.getFrame(dt);
+                    
+                    glActiveTexture(GL_TEXTURE9);
+                    glBindTexture(GL_TEXTURE_2D, waterCalculator.getFrame(dt));
                     glActiveTexture(GL_TEXTURE10);
                     glBindTexture(GL_TEXTURE_2D, waterReflectionTexID);
+                    glActiveTexture(GL_TEXTURE11);
+                    glBindTexture(GL_TEXTURE_2D, waterRefractionTexID);
+                    glActiveTexture(GL_TEXTURE12);
+                    glBindTexture(GL_TEXTURE_2D, waterCalculator.dudvMap);
+                    glActiveTexture(GL_TEXTURE13);
+                    glBindTexture(GL_TEXTURE_2D, waterCalculator.normalMap);
                     scene::drawElement(&gameWorld.seaSurface, glm::mat4(1.0f), waterShader);
-                } else if (!gameWorld.cutsceneEnabled) {
+                    glActiveTexture(GL_TEXTURE0);
+                } else if (!gameWorld.cutsceneEnabled && currFBO == waterReflectionFBO) {
                     // Draw the player
                     defaultShader.activate();
                     gameWorld.player.positionInWorld.translation = gameWorld.playerCamera.pos;
-                    gameWorld.player.positionInWorld.translation.y -= 1.0f;
                     scene::drawElement(&gameWorld.player.positionInWorld, glm::mat4(1.0f), defaultShader);
                 }
+                defaultShader.activate();
     
                 // Drawing transparent block
                 defaultShader.activate();
                 glActiveTexture(GL_TEXTURE2);
                 glBindTexture(GL_TEXTURE_2D, depthMapTexID);
+
+                if (!gameWorld.cutsceneEnabled) gameWorld.drawHand(defaultShader);
                 
                 gameWorld.drawTransTerrain(glm::mat4(1.0f), defaultShader, false);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            reflection = false;
         }
         
 
@@ -964,14 +1040,25 @@ int main() {
             glClearColor(0, 0, 0, 1);
             defaultShader.activate();
             defaultShader.setInt("forceBlack", true);
-            gameWorld.drawWorld(defaultShader, true);
+            gameWorld.drawWorld(defaultShader, true, true);
             gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, false);
+            if (!gameWorld.cutsceneEnabled) gameWorld.drawHand(defaultShader);
             defaultShader.setInt("forceBlack", false);
             // Drawing the water
             waterShader.activate();
             waterShader.setMat4("uViewProj", view_proj);
             waterShader.setMat4("uModel", utility::findModelMatrix(gameWorld.seaSurface.translation, gameWorld.seaSurface.scale, gameWorld.seaSurface.rotation));
-            gameWorld.seaSurface.textureID = waterCalculator.getFrame(dt);
+            // Setting up all the textures of the water to be black
+            glActiveTexture(GL_TEXTURE9);
+            glBindTexture(GL_TEXTURE_2D, waterCalculator.blackTex);
+            glActiveTexture(GL_TEXTURE10);
+            glBindTexture(GL_TEXTURE_2D, waterCalculator.blackTex);
+            glActiveTexture(GL_TEXTURE11);
+            glBindTexture(GL_TEXTURE_2D, waterCalculator.blackTex);
+            glActiveTexture(GL_TEXTURE12);
+            glBindTexture(GL_TEXTURE_2D, waterCalculator.blackTex);
+            glActiveTexture(GL_TEXTURE13);
+            glBindTexture(GL_TEXTURE_2D, waterCalculator.blackTex);
             scene::drawElement(&gameWorld.seaSurface, glm::mat4(1.0f), waterShader);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -1002,8 +1089,8 @@ int main() {
         glBindFramebuffer(GL_FRAMEBUFFER, finalFrameFBO);
             glClear(GL_COLOR_BUFFER_BIT);
             hdrShader.activate();
-            hdrShader.setInt("isUnderwater", gameWorld.seaSurface.translation.y > gameWorld.playerCamera.pos.y);
-            hdrShader.setFloat("cycle", waterWaveCycle);
+            hdrShader.setInt("isUnderwater", gameWorld.isUnderwater());
+            hdrShader.setFloat("cycle", waterCalculator.waterWaveCycle);
             hdrShader.setInt("hdr", info.hdrType);
             hdrShader.setFloat("exposure", info.exposureLevel);
             hdrShader.setInt("scene", 0);
@@ -1027,10 +1114,13 @@ int main() {
         // Auto adjusting the exposure values
         if (info.hdrType == 1) {
             info.averageIlluminance = utility::findIlluminance(WIN_WIDTH, WIN_HEIGHT, finalFrameTexID);
-            auto correctExposure = 0.5 / info.averageIlluminance * 1.8;
-            if (utility::roundUp(info.exposureLevel, 2) != utility::roundUp(correctExposure, 2)) {
-                info.exposureLevel = utility::lerp(info.exposureLevel, correctExposure, 0.05f);
+            if (info.averageIlluminance != 0 && info.averageIlluminance < 50) {
+                auto correctExposure = 0.5 / info.averageIlluminance * 1.8;
+                if (utility::roundUp(info.exposureLevel, 2) != utility::roundUp(correctExposure, 2)) {
+                    info.exposureLevel = utility::lerp(info.exposureLevel, correctExposure, 0.05f);
+                }
             }
+            
         } else {
             info.exposureLevel = 2.0f;
         }

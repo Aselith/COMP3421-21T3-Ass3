@@ -22,13 +22,14 @@
 
 namespace scene {
 
-    const float GRAVITY         = -19.6f;
-    const float JUMP_POWER      = 6.0f;
-    const float CAMERA_SPEED    = 5.0f;
-    const float PLAYER_RADIUS   = 0.25f; // 0.25
-    const float SCREEN_DISTANCE = 0.25f;
-    const int   REFLECTION_SIZE = 2560;
-    const int   VOID_LEVEL      = -5;
+    const float GRAVITY               = -19.6f;
+    const float JUMP_POWER            = 6.0f;
+    const float JUMP_POWER_UNDERWATER = 4.0f;
+    const float CAMERA_SPEED          = 5.0f;
+    const float PLAYER_RADIUS         = 0.25f; // 0.25
+    const float SCREEN_DISTANCE       = 0.25f;
+    const int   REFLECTION_SIZE       = 2560;
+    const int   VOID_LEVEL            = -5;
 
 
     struct node_t {
@@ -176,7 +177,6 @@ namespace scene {
             leftLegNodePtrs = &positionInWorld.children.at(4);
             rightLegNodePtrs = &positionInWorld.children.at(5);
             blockInHandPtrs = &positionInWorld.children.at(3).children.at(0).children.at(0);
-            std::cout << rightArmNodePtrs << " " << blockInHandPtrs << "\n";
         }
 
         void tiltHead(float headPitch) {
@@ -380,7 +380,7 @@ namespace scene {
         float eyeLevel = 1.0f;
         bool shiftMode = false;
         float walkingMultiplier = 0.5f;
-        bool cutsceneEnabled = false, useReflectionCam = false;
+        bool cutsceneEnabled = false, useReflectionCam = false, drawCelestials = true;;
         player::playerPOV playerCamera, cutsceneCamera, reflectionCamera;
         glm::vec3 oldPos, oldHandPos, oldHandRotation, lastRenderedPos;
         int increments = 200;
@@ -397,6 +397,7 @@ namespace scene {
         std::vector<node_t *> listOfShinyBlocksToRender;
 
         node_t screen;
+        node_t screenHand;
         node_t centreOfWorld;
         node_t highlightedBlock;
         node_t bed;
@@ -439,7 +440,7 @@ namespace scene {
             seaSurface = createSeaSurface(0, seaSize);
             seaSurface.translation.x = worldWidth / 2.0f;
             seaSurface.translation.z = worldWidth / 2.0f;
-            seaSurface.translation.y = VOID_LEVEL;
+            seaSurface.translation.y = VOID_LEVEL + 0.001f;
 
             // SETTING UP CENTRE OF WORLD SCENE GRAPH
             // Setting up moon phases
@@ -554,8 +555,8 @@ namespace scene {
 
             player.initialise(playerTex, hotbar.at(2).texture);
 
-            screen.children.push_back(blockHand);
-            handIndex = screen.children.size() - 1;
+            screenHand.children.push_back(blockHand);
+            handIndex = screenHand.children.size() - 1;
 
             node_t flyingIconNode = scene::createFlatSquare(flyingIcon, false);
             flyingIconNode.translation.z = -2.8f * SCREEN_DISTANCE;
@@ -646,8 +647,8 @@ namespace scene {
                 terrain.at((size_t)listOfBlocks[i].position.x).at((size_t)listOfBlocks[i].position.y).at((size_t)listOfBlocks[i].position.z).transparent = generatingBlock.transparent;
             }
             // Keeping track of where the hand and rotation is
-            oldHandPos = screen.children[handIndex].translation;
-            oldHandRotation = screen.children[handIndex].rotation;
+            oldHandPos = screenHand.children[handIndex].translation;
+            oldHandRotation = screenHand.children[handIndex].rotation;
             std::cout << "World Created\n\n";
         }
 
@@ -674,17 +675,22 @@ namespace scene {
         }
 
         void changeSeaLevel(int direction) {
+            seaSurface.translation.y -= 0.001f;
             if (direction > 0) {
-                seaSurface.translation.y++;
+                seaSurface.translation.y += 0.5f;
             } else {
-                seaSurface.translation.y--;
+                seaSurface.translation.y -= 0.5f;
+            }
+            
+            seaSurface.translation.y = std::min(std::max(seaSurface.translation.y, (float)VOID_LEVEL - 1.0f), (float)WORLD_HEIGHT);
+            if (seaSurface.translation.y < VOID_LEVEL) {
+                seaSurface.air = true;
+            } else {
+                seaSurface.air = false;
             }
 
-            if (seaSurface.translation.y < VOID_LEVEL) {
-                seaSurface.translation.y = VOID_LEVEL;
-            } else if (seaSurface.translation.y > 0.0f) {
-                seaSurface.translation.y = 0;
-            }
+            // Preventing Z-fighting
+            seaSurface.translation.y += 0.001f ;
         }
 
         /**
@@ -910,7 +916,7 @@ namespace scene {
                     controlPoint[i] += oldHandPos;
                 }
                 
-                screen.children[handIndex].translation.y = utility::cubicBezier(controlPoint, walkCycle).y;
+                screenHand.children[handIndex].translation.y = utility::cubicBezier(controlPoint, walkCycle).y;
             }
         }
 
@@ -951,8 +957,8 @@ namespace scene {
                 swingCycle += dt * 3.0f;
                 float t = std::min(1.0f, swingCycle);
 
-                screen.children[handIndex].rotation.x = utility::cubicBezier(controlPointRotation, t).z;
-                screen.children[handIndex].translation = utility::cubicBezier(controlPoint, t);
+                screenHand.children[handIndex].rotation.x = utility::cubicBezier(controlPointRotation, t).z;
+                screenHand.children[handIndex].translation = utility::cubicBezier(controlPoint, t);
 
                 if (t == 1.0f) {
                     swingCycle = -1.0f;
@@ -982,8 +988,8 @@ namespace scene {
             } else if (hotbarIndex < 0) {
                 hotbarIndex = (int)hotbar.size() + hotbarIndex;
             }
-            screen.children[handIndex].textureID = hotbar[hotbarIndex].texture;
-            screen.children[handIndex].specularID = hotbar[hotbarIndex].specularMap;
+            screenHand.children[handIndex].textureID = hotbar[hotbarIndex].texture;
+            screenHand.children[handIndex].specularID = hotbar[hotbarIndex].specularMap;
             // Updating the textures in the hotbar
             int tempIndex = hotbarIndex - 4;
             if (tempIndex < 0) {
@@ -1045,8 +1051,8 @@ namespace scene {
          */
         void rightClickPlace(renderer::renderer_t *renderInfo) {
             swingCycle = 0;
-            screen.children[handIndex].translation = oldHandPos;
-            screen.children[handIndex].rotation = oldHandRotation;
+            screenHand.children[handIndex].translation = oldHandPos;
+            screenHand.children[handIndex].rotation = oldHandRotation;
 
             size_t placeX, placeY, placeZ;
 
@@ -1112,8 +1118,8 @@ namespace scene {
          */
         void leftClickDestroy(renderer::renderer_t *renderInfo, glm::vec3 forcedPlace = {-10, -10, -10}) {
             swingCycle = 0;
-            screen.children[handIndex].translation = oldHandPos;
-            screen.children[handIndex].rotation = oldHandRotation;
+            screenHand.children[handIndex].translation = oldHandPos;
+            screenHand.children[handIndex].rotation = oldHandRotation;
             
             glm::vec3 placeBlockVector;
             if (forcedPlace.x < 0) {
@@ -1247,7 +1253,12 @@ namespace scene {
                 walkingMultiplier = 0.5f;
             }
 
+            // Slowing player down iif in water or on slime block
             if (strcmp(blockBelowName().c_str(), "slime_block") == 0 && groundLevel == playerCamera.pos.y - 1.0f) {
+                walkingMultiplier *= 0.5f;
+            }
+
+            if (isUnderwater() && !flyingMode) {
                 walkingMultiplier *= 0.5f;
             }
 
@@ -1312,6 +1323,8 @@ namespace scene {
                         playerCamera.pos.y -= step;
                     }
                 }
+            } else if (glfwGetKey(window, GLFW_KEY_SPACE) && isUnderwater() && !flyingMode) {
+                playerCamera.yVelocity = JUMP_POWER_UNDERWATER;
             }
             if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS && playerCamera.pos.y != (float)groundLevel + eyeLevel) {
                 if (flyingMode) {
@@ -1351,11 +1364,14 @@ namespace scene {
             if (!flyingMode) {
 
                 playerCamera.pos.y += playerCamera.yVelocity * dt;
-                playerCamera.yVelocity += GRAVITY * dt;
-                // Enacting player terminal velocity
-                if (abs(playerCamera.yVelocity) >= 50.0f) {
-                    playerCamera.yVelocity = 50.0f * (playerCamera.yVelocity / abs(playerCamera.yVelocity));
+                if (isUnderwater()) {
+                    playerCamera.yVelocity += GRAVITY * dt;
+                } else {
+                    playerCamera.yVelocity += GRAVITY * dt;
                 }
+                // Enacting player terminal velocity
+                auto terminalVelocity = isUnderwater() ? 2.0f : 40.0f;
+                playerCamera.yVelocity = glm::clamp(playerCamera.yVelocity, -terminalVelocity, terminalVelocity);
 
                 if (playerCamera.pos.y < groundLevel + eyeLevel) {
                     // Prevents player from falling through the ground
@@ -1364,9 +1380,10 @@ namespace scene {
                     if (strcmp(blockBelowName().c_str(), "slime_block") == 0) {
                         playerCamera.yVelocity = abs(playerCamera.yVelocity) * 0.75 + GRAVITY * dt;
                         if (playerCamera.yVelocity >= 4.0f && !shiftMode) {
-                            // Enact gravity
+                            // Enacting gravity
                             playerCamera.pos.y += playerCamera.yVelocity * dt;
                             playerCamera.yVelocity += GRAVITY * dt;
+                            
                         }
                     } else {
                         playerCamera.yVelocity = 0.0f;
@@ -1510,18 +1527,26 @@ namespace scene {
             return (int)direction * (int)WORLD_HEIGHT * (int)WORLD_HEIGHT;
         }
 
+        bool isUnderwater() {
+            return seaSurface.translation.y >= glm::round(playerCamera.pos.y - 0.03f);
+        }
+
         /**
          * @brief Draws the terrain, HUD, lighting effects etc.
          * 
          * @param renderInfo 
          */
-        void drawWorld(renderer::renderer_t renderInfo, bool onlyIlluminating = false) {
+        void drawWorld(renderer::renderer_t renderInfo, bool onlyIlluminating = false, bool drawHand = false) {
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (strcmp(renderInfo.type.c_str(), "default") == 0) {
                 renderInfo.setBasePters(getCurrCamera()->pos);
-                drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo);
+                if (drawCelestials) {
+                    glDepthRange(0.999,1);
+                    drawElement(&centreOfWorld, glm::mat4(1.0f), renderInfo);
+                    glDepthRange(0,1);
+                }
             }
             drawTerrain(glm::mat4(1.0f), renderInfo, onlyIlluminating, getCurrCamera());
 
@@ -1540,6 +1565,22 @@ namespace scene {
 
             //drawElement(&seaSurface, glm::mat4(1.0f), renderInfo);
             return;
+        }
+
+        void drawHand(renderer::renderer_t renderInfo) {
+            // Drawing the 3D hand on screen
+            renderInfo.setInt("affectedByShadows", false);
+            screenHand.translation = playerCamera.pos;
+            screenHand.rotation.x = utility::lerp(screenHand.rotation.x, playerCamera.pitch, 0.75f);
+            auto newRot = -playerCamera.yaw;
+            if (screenHand.rotation.y - newRot > 180.0f) {
+                screenHand.rotation.y -= 360.0f;
+            } else if (newRot - screenHand.rotation.y > 180.0f) {
+                screenHand.rotation.y += 360.0f;
+            }
+            screenHand.rotation.y = utility::lerp(screenHand.rotation.y, -playerCamera.yaw, 0.75f);
+            drawElement(&screenHand, glm::mat4(1.0f), renderInfo);
+            renderInfo.setInt("affectedByShadows", true);
         }
 
         glm::vec3 getCentreOfWorld() {

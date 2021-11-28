@@ -17,27 +17,25 @@ namespace scene {
         glUniformMatrix4fv(renderInfo.model_loc, 1, GL_FALSE, glm::value_ptr(model));
 
         if (node->mesh.vbo) {
-            
-
-            glActiveTexture(GL_TEXTURE0);
-            if (onlyIlluminating) {
-                glBindTexture(GL_TEXTURE_2D, node->bloomTexID);
-            } else {
-                glBindTexture(GL_TEXTURE_2D, node->textureID);
-            }
-            
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, node->specularID);
-
-            glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
-            glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
-            glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
-            glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
-            glUniform4fv(renderInfo.mat_specular_loc, 1, glm::value_ptr(node->specular));
-            glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
 
             if (strcmp(renderInfo.type.c_str(), "default") == 0) {
                 renderInfo.setInt("isIlluminating", node->illuminating);
+                glActiveTexture(GL_TEXTURE0);
+                if (onlyIlluminating) {
+                    glBindTexture(GL_TEXTURE_2D, node->bloomTexID);
+                } else {
+                    glBindTexture(GL_TEXTURE_2D, node->textureID);
+                }
+                
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, node->specularID);
+
+                glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
+                glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
+                glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
+                glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
+                glUniform4fv(renderInfo.mat_specular_loc, 1, glm::value_ptr(node->specular));
+                glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
             }
 
             glBindVertexArray(node->mesh.vao);
@@ -67,18 +65,17 @@ namespace scene {
         glUniformMatrix4fv(renderInfo.model_loc, 1, GL_FALSE, glm::value_ptr(model));
 
         if (node->mesh.vbo && !node->air) {
-            
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, node->textureID);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, node->specularID);
-            glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
-            glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
-            glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
-            glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
-            glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
-            
+
             if (strcmp(renderInfo.type.c_str(), "default") == 0) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, node->textureID);
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, node->specularID);
+                glUniform1f(renderInfo.mat_tex_factor_loc, node->textureID ? 1.0f : 0.0f);
+                glUniform1f(renderInfo.mat_specular_factor_loc, node->specularID ? 1.0f : 0.0f);
+                glUniform4fv(renderInfo.mat_color_loc, 1, glm::value_ptr(node->color));
+                glUniform3fv(renderInfo.mat_diffuse_loc, 1, glm::value_ptr(node->diffuse));
+                glUniform1f(renderInfo.phong_exponent_loc, node->phong_exp);
                 renderInfo.setInt("isIlluminating", node->illuminating);
             }
 

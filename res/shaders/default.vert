@@ -28,6 +28,7 @@ out vec4 fragPosLightSpace;
 uniform mat4 uViewProj;
 uniform mat4 uModel;
 uniform mat4 uLightProj;
+uniform vec4 plane;
 
 void main() {
     vTexCoord = aTexCoord;
@@ -37,6 +38,8 @@ void main() {
         vNormal = normalize(uModel * vec4(aNormal, 0)).xyz;
     }
     vPosition = (uModel * aPos).xyz;
+
+    gl_ClipDistance[0] = dot(uModel * aPos, plane);
 
     // Shadow shenanigans
     fragPosLightSpace = uLightProj * vec4(vPosition, 1.0);

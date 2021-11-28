@@ -75,7 +75,11 @@ namespace utility {
 	}
 
 	GLfloat lerp(GLfloat posA, GLfloat posB, GLfloat by) {
-		return posA * (1 - by) + posB * by;
+		auto newPos = posA * (1 - by) + posB * by;
+		if (abs(posB - newPos) < 0.01f) {
+			return posB;
+		}
+		return newPos;
 	}
 
 	double roundUp(double value, int decimal_places) {

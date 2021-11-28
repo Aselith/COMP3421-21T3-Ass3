@@ -99,6 +99,10 @@ vec3 calcPointLight(SpotLight light, vec3 mat_diffuse, vec3 mat_specular) {
     vec3 diffuse = light.diffuse * mat_diffuse * max(0,dot(lightDir, vNormal));
     
     vec3 view = normalize(uCameraPos - vPosition);
+
+    if (dot(lightDir, vNormal) <= 0) {
+        return vec3(0, 0, 0);
+    }
    
     // Adjusted to use Bling Phong Model
     vec3 halfwayDir = normalize(lightDir + view);
@@ -114,7 +118,7 @@ vec3 calcPointLight(SpotLight light, vec3 mat_diffuse, vec3 mat_specular) {
 }
 
 void main() {
-    
+
     if (vNormal.x == 0 && vNormal.y == 0 && vNormal.z == 0) {
         fFragColor = texture(uTex, vTexCoord);
         if (isIlluminating) {
@@ -136,7 +140,7 @@ void main() {
 
         // Only calculate spot light if there is a diffuse map. This is to avoid lighting on
         // the sky box
-        vec3 resultPointLightTotal;
+        vec3 resultPointLightTotal = vec3(0, 0, 0);
         if (uMat.texFactor == 1.0f) {
             for (int i = 0; i < MAX_LIGHTS; i++) {
                 if (allLights[i].position.x >= 0 && allLights[i].position.y >= 0 && allLights[i].position.z >= 0) {
