@@ -27,6 +27,10 @@ namespace utility {
      */
     float time_delta();
 
+    void createFramebuffers(GLuint *fbo, GLuint *texID, GLuint width, GLuint height);
+
+    void createFramebuffers(GLuint *fbo, GLuint *texID, GLuint *rbo, GLuint width, GLuint height);
+
     /**
      * @brief Determines if value is between min and max, inclusive of min but exclusive
      * of max.

@@ -7,17 +7,27 @@ uniform sampler2D scene;
 uniform sampler2D bloomBlur;
 
 #define GAMMA 2.2
+const float OFFSET_X = 1.0f / 800.0f;
+const float OFFSET_Y = 1.0f / 800.0f;
 
 uniform int hdr;
 uniform float exposure;
 uniform bool isUnderwater;
 uniform float cycle;
 
+vec2 offsets[9] = vec2[]
+(
+    vec2(-OFFSET_X, OFFSET_Y), vec2(0.0f, OFFSET_Y), vec2(OFFSET_X, OFFSET_Y),
+    vec2(-OFFSET_X, 0.0f),     vec2(0.0f, 0.0f),     vec2(OFFSET_X, 0.0f),
+    vec2(-OFFSET_X, -OFFSET_Y), vec2(0.0f, -OFFSET_Y), vec2(OFFSET_X, -OFFSET_Y)
+);
 
-// 0 - off
-// 1 - Exposure
-// 2 - Filmic
-// 3 - Reinhard
+float kernalBlur[9] = float[]
+(
+    0.0625, 0.125, 0.0625,
+    0.1250, 0.250, 0.1250,
+    0.0625, 0.125, 0.0625
+);
 
 vec3 tonemapExposure(vec3 color) {
     vec3 result = vec3(1.0) - exp(-color * exposure);
@@ -63,16 +73,19 @@ vec3 tonemapNeg(vec3 color) {
 }
 
 void main() {
-    vec3 hdrColor, bloomColor;
+    vec3 hdrColor = vec3(0.0f), bloomColor = vec3(0.0f);
     float value = 12 * (vTexCoord.y - cycle);
     if (isUnderwater) {
-
+        // Wavy effect
         vec2 newTexCoord = vTexCoord;
         newTexCoord.x = newTexCoord.x + 0.01 * sin(value);
         newTexCoord = clamp(newTexCoord, 0.001, 0.999);
 
-        hdrColor = texture(scene, newTexCoord).rgb;      
-        bloomColor = texture(bloomBlur, newTexCoord).rgb * 2;
+        for (int i = 0; i < 9; i++) {
+            // Adding a blurry effect using kernals
+            hdrColor += vec3(texture(scene, newTexCoord.st + offsets[i])) * kernalBlur[i];
+            bloomColor += vec3(texture(bloomBlur, newTexCoord.st + offsets[i])) * kernalBlur[i];
+        }
     } else {
         hdrColor = texture(scene, vTexCoord).rgb;      
         bloomColor = texture(bloomBlur, vTexCoord).rgb;
@@ -88,6 +101,7 @@ void main() {
     vec3 result = hdrColor;
 
     if (isUnderwater) {
+        // Adding blue tint to the screen
         result = mix(vec4(result, 1.0), vec4(49.0 / 255.0, 83.0 / 255.0, 152.0 / 255.0, 1.0), 0.5).rgb;
     }
 

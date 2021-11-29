@@ -10,5 +10,5 @@ uniform samplerCube skybox;
 void main() {
     vec3 incidence = normalize(vPosition - cameraPos);
     vec3 reflection = reflect(incidence, normalize(vNormal));
-    FragColor = vec4(texture(skybox, reflection).rgb, 1.0);
+    FragColor = vec4(texture(skybox, reflection).rgb, 1.0f);
 }

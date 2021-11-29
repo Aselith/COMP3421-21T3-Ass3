@@ -14,7 +14,6 @@
 #include <ass3/player.hpp>
 #include <ass3/texture_2d.hpp>
 #include <ass3/renderer.hpp>
-#include <ass3/player_model.hpp>
 
 #include <math.h>
 #include <vector>
@@ -380,8 +379,8 @@ namespace scene {
         float eyeLevel = 1.0f;
         bool shiftMode = false;
         float walkingMultiplier = 0.5f;
-        bool cutsceneEnabled = false, useReflectionCam = false, drawCelestials = true;;
-        player::playerPOV playerCamera, cutsceneCamera, reflectionCamera;
+        bool cutsceneEnabled = false, useReflectionCam = false, useCubemapCam = false, drawCelestials = true;;
+        player::playerPOV playerCamera, cutsceneCamera, reflectionCamera, cubemapCamera;
         glm::vec3 oldPos, oldHandPos, oldHandRotation, lastRenderedPos;
         int increments = 200;
         int playerReachRange = 4 * increments;
@@ -528,6 +527,7 @@ namespace scene {
             hotbar.push_back(combineBlockData("slime_block", false, false, true));
             hotbar.push_back(combineBlockData("marccoin_block", false, false, true));
             hotbar.push_back(combineBlockData("bedrock", false, false));
+            hotbar.push_back(combineBlockData("wip", false, false));
             // Second hotbar
             hotbarSecondary.push_back(combineBlockData("white", false, false));
             hotbarSecondary.push_back(combineBlockData("orange", false, false));
@@ -658,7 +658,9 @@ namespace scene {
          * @return player::playerPOV* 
          */
         player::playerPOV *getCurrCamera() {
-            if (useReflectionCam) {
+            if (useCubemapCam) {
+                return &cubemapCamera;
+            } else if (useReflectionCam) {
                 return &reflectionCamera;
             } else if (cutsceneEnabled) {
                 return &cutsceneCamera;
@@ -682,7 +684,7 @@ namespace scene {
                 seaSurface.translation.y -= 0.5f;
             }
             
-            seaSurface.translation.y = std::min(std::max(seaSurface.translation.y, (float)VOID_LEVEL - 1.0f), (float)WORLD_HEIGHT);
+            seaSurface.translation.y = std::min(std::max(seaSurface.translation.y, (float)VOID_LEVEL - 0.5f), (float)WORLD_HEIGHT);
             if (seaSurface.translation.y < VOID_LEVEL) {
                 seaSurface.air = true;
             } else {
@@ -746,7 +748,7 @@ namespace scene {
         }
 
         int getSkyRadius() {
-            return (renderDistance > 30) ? renderDistance : 30;
+            return 30.0f;
         }
 
         /**
@@ -1324,7 +1326,8 @@ namespace scene {
                     }
                 }
             } else if (glfwGetKey(window, GLFW_KEY_SPACE) && isUnderwater() && !flyingMode) {
-                playerCamera.yVelocity = JUMP_POWER_UNDERWATER;
+                // Controls swimming
+                playerCamera.yVelocity = (checkInsideBlock()) ? -1.5f * JUMP_POWER_UNDERWATER : JUMP_POWER_UNDERWATER;
             }
             if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS && playerCamera.pos.y != (float)groundLevel + eyeLevel) {
                 if (flyingMode) {
@@ -1570,15 +1573,17 @@ namespace scene {
         void drawHand(renderer::renderer_t renderInfo) {
             // Drawing the 3D hand on screen
             renderInfo.setInt("affectedByShadows", false);
-            screenHand.translation = playerCamera.pos;
-            screenHand.rotation.x = utility::lerp(screenHand.rotation.x, playerCamera.pitch, 0.75f);
+            screenHand.translation.x = playerCamera.pos.x;
+            screenHand.translation.z = playerCamera.pos.z;
+            screenHand.translation.y = utility::lerp(screenHand.translation.y, playerCamera.pos.y, 0.75f);
+            screenHand.rotation.x = utility::lerp(screenHand.rotation.x, playerCamera.pitch, 0.65f);
             auto newRot = -playerCamera.yaw;
             if (screenHand.rotation.y - newRot > 180.0f) {
                 screenHand.rotation.y -= 360.0f;
             } else if (newRot - screenHand.rotation.y > 180.0f) {
                 screenHand.rotation.y += 360.0f;
             }
-            screenHand.rotation.y = utility::lerp(screenHand.rotation.y, -playerCamera.yaw, 0.75f);
+            screenHand.rotation.y = utility::lerp(screenHand.rotation.y, -playerCamera.yaw, 0.65f);
             drawElement(&screenHand, glm::mat4(1.0f), renderInfo);
             renderInfo.setInt("affectedByShadows", true);
         }
@@ -1599,7 +1604,7 @@ namespace scene {
          * @param parent_mvp 
          * @param renderInfo 
          */
-        void drawTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating, player::playerPOV *cam) {
+        void drawTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating, player::playerPOV *cam, bool debug = false) {
 
             for (size_t i = 0; i < listOfBlocksToRender.size(); i++) {
                 float x = listOfBlocksToRender[i]->translation.x;
@@ -1609,12 +1614,12 @@ namespace scene {
                 if (utility::calculateDistance(glm::vec3(x, y, z), cam->pos) <= renderDistance) {
                     
                     if (!(strcmp(renderInfo.type.c_str(), "shadow") == 0 && listOfBlocksToRender[i]->transparent)) {
-
+                        
                         if (strcmp(renderInfo.type.c_str(), "shadow") == 0) {
                             drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
-                        } else if (frustum::isBlockInView(player::getLookingDirection(getCurrCamera(), 1), glm::vec3(x, y, z), getCurrCamera()->pos)) {
+                        } else if (frustum::isBlockInView(player::getLookingDirection(cam, 1), glm::vec3(x, y, z), cam->pos)) {
                             drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
-                        } else if (utility::calculateDistance(glm::vec3(x, y, z), getCurrCamera()->pos) <= 2.0f) {
+                        } else if (utility::calculateDistance(glm::vec3(x, y, z), cam->pos) <= 2.0f) {
                             drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
                         }
                     }
@@ -1786,8 +1791,8 @@ namespace scene {
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
             glViewport(0, 0, REFLECTION_SIZE, REFLECTION_SIZE);
-            auto reflectCamera = player::createCamera(centre, {0, 0, 0});
-            for (int i = 0; i < 6; i++) {
+            cubemapCamera.pos = centre;
+            for (GLenum i = 0; i < 6; i++) {
                 
                 glFramebufferTexture2D(
                     GL_FRAMEBUFFER,
@@ -1797,43 +1802,46 @@ namespace scene {
                     0
                 );
                 switch(i) {
-                    case 0:
-                        reflectCamera.pitch = 0.0f;
-                        reflectCamera.yaw = 90.0f;
+                    case 0: // right
+                        cubemapCamera.pitch = 0.0f;
+                        cubemapCamera.yaw = 90.0f;
                         break;
-                    case 1:
-                        reflectCamera.pitch = 0.0f;
-                        reflectCamera.yaw = -90.0f;
+                    case 1: //left
+                        cubemapCamera.pitch = 0.0f;
+                        cubemapCamera.yaw = -90.0f;
                         break;
-                    case 2:
-                        reflectCamera.pitch = 180.0f;
-                        reflectCamera.yaw = -90.0f;
+                    case 2: //top
+                        cubemapCamera.pitch = -90.0f;
+                        cubemapCamera.yaw = 180.0f;
                         break;
-                    case 3:
-                        reflectCamera.pitch = 90.0f;
-                        reflectCamera.yaw = 180.0f;
+                    case 3: //bottom
+                        cubemapCamera.pitch = 90.0f;
+                        cubemapCamera.yaw = 180.0f;
                         break;
-                    case 4:
-                        reflectCamera.pitch = 0.0f;
-                        reflectCamera.yaw = 180.0f;
+                    case 4: //front
+                        cubemapCamera.pitch = 0.0f;
+                        cubemapCamera.yaw = 180.0f;
                         break;
-                    case 5:
-                        reflectCamera.pitch = 0.0f;
-                        reflectCamera.yaw = 0.0f;
+                    case 5: //back
+                        cubemapCamera.pitch = 0.0f;
+                        cubemapCamera.yaw = 0.0f;
                         break;
                 }
-                projViewMatrix = reflectCamera.get_view() * projectionMatrix;
+                projViewMatrix = cubemapCamera.get_view() * renderInfo.projection;
                 glClearColor(1, 1, 1, 1);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                renderInfo.activate();
                 renderInfo.setMat4("uViewProj", projViewMatrix);
-                drawTerrain(glm::mat4(1.0f), renderInfo, false, &reflectCamera);
+                useCubemapCam = true;
+                drawWorld(renderInfo);
                 drawSkyBox(skyboxRender, renderInfo.projection, skyTextures.x, skyTextures.y, blendFactor);
+                useCubemapCam = false;
             }
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             // glUniformMatrix4fv(renderInfo.view_proj_loc, 1, GL_FALSE, glm::value_ptr(usualView));
             glViewport(0, 0, winSize.x, winSize.y);
-            chicken3421::delete_framebuffer(fbo);
-            chicken3421::delete_framebuffer(rbo);
+            //chicken3421::delete_framebuffer(fbo);
+            //chicken3421::delete_framebuffer(rbo);
         }
 
         void drawSkyBox(renderer::renderer_t shader, glm::mat4 proj, GLuint prevTex, GLuint currTex, GLfloat blendValue) {
@@ -1911,7 +1919,7 @@ namespace scene {
                         getHiddenFaces(x, y, z, terrain.at(x).at(y).at(z).culledFaces, true);
 
                         if (utility::countFalses(terrain.at(x).at(y).at(z).culledFaces) < 6) {
-                            if (strcmp(terrain.at(x).at(y).at(z).name.c_str(), "slime_block") == 0) {
+                            if (strcmp(terrain.at(x).at(y).at(z).name.c_str(), "wip") == 0) {
                                 listOfShinyBlocksToRender.push_back(&terrain.at(x).at(y).at(z));
                             } else {
                                 listOfBlocksToRender.push_back(&terrain.at(x).at(y).at(z));

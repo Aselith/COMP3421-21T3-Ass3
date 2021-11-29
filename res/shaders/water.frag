@@ -5,8 +5,8 @@
 #define MAX_LIGHTS 101
 
 #define WAVE_STRENGTH 0.005
-#define SHINE_FACTOR  16.0
-#define REFLECTIVITY  0.5
+#define SHINE_FACTOR  32.0
+#define REFLECTIVITY  1.0
 
 in vec2 vTexCoord;
 in vec4 glPositionSpace;

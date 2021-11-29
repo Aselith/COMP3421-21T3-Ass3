@@ -4,6 +4,8 @@ out vec4 FragColor;
 in vec2 vTexCoord;
 
 uniform sampler2D uTex;
+uniform sampler2D uTemp;
+uniform bool isUnderwater;
 uniform int kernelType;
 
 const float OFFSET_X = 1.0f / 800.0f;
@@ -93,4 +95,8 @@ void main() {
     }
 
     FragColor = vec4(result, 1.0f);
+
+    if (isUnderwater) {
+        FragColor = mix(FragColor, texture(uTemp, vTexCoord), 0.25f);
+    }
 }

@@ -32,6 +32,53 @@ namespace utility {
 		return value >= min && value < max;
 	}
 
+	void createFramebuffers(GLuint *fbo, GLuint *texID, GLuint width, GLuint height) {
+		GLuint framebuffer, textureID;
+		glGenFramebuffers(1, &framebuffer);
+		glGenTextures(1, &textureID);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureID, 0);
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			std::cout << "Framebuffer not complete!\n";
+		}
+		*fbo = framebuffer;
+		*texID = textureID;
+	}
+
+	void createFramebuffers(GLuint *fbo, GLuint *texID, GLuint *rbo, GLuint width, GLuint height) {
+		GLuint framebuffer, textureID, renderbuffer;
+		glGenFramebuffers(1, &framebuffer);
+		glBindFramebuffer(1, framebuffer);
+		glGenRenderbuffers(1, &renderbuffer);
+
+		glGenTextures(1, &textureID);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		
+		glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureID, 0);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderbuffer);
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			std::cout << "Framebuffer not complete!\n";
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		*fbo = framebuffer;
+		*texID = textureID;
+		*rbo = renderbuffer;
+	}
+
 	glm::mat4 findModelMatrix(glm::vec3 trans, glm::vec3 scale, glm::vec3 rot, glm::mat4 parentMat) {
 		glm::mat4 model = parentMat;
 		model *= glm::translate(glm::mat4(1.0), trans);
@@ -76,7 +123,7 @@ namespace utility {
 
 	GLfloat lerp(GLfloat posA, GLfloat posB, GLfloat by) {
 		auto newPos = posA * (1 - by) + posB * by;
-		if (abs(posB - newPos) < 0.01f) {
+		if (abs(posB - newPos) < 0.001f) {
 			return posB;
 		}
 		return newPos;
