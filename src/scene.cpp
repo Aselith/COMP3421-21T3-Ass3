@@ -215,10 +215,10 @@ namespace scene {
         return square;
     }
 
-    node_t createSeaSurface(GLuint texID, int width) {
+    node_t createFlatSurface(GLuint texID, int width) {
 
         node_t square;
-        square.mesh = shapes::createSeaSurface(width);
+        square.mesh = shapes::createFlatSurface(width);
         square.textureID = texID;
         square.air = false;
         return square;

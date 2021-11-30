@@ -4,7 +4,8 @@ out vec4 FragColor;
 in vec2 vTexCoord;
 
 uniform sampler2D uTex;
-uniform sampler2D uTemp;
+uniform sampler2D uTempA;
+uniform sampler2D uTempB;
 uniform bool isUnderwater;
 uniform int kernelType;
 
@@ -26,6 +27,10 @@ vec3 kernalFilter(float kernal[9]) {
         color += vec3(texture(uTex, vTexCoord.st + offsets[i])) * kernal[i];
     }
     return color;
+}
+
+vec3 neg(vec3 color) {
+    return vec3(1.0 - color.r, 1.0 - color.g, 1.0 - color.b);
 }
 
 vec3 pixelate() {
@@ -89,6 +94,10 @@ void main() {
         case 6:
             result = pixelate();
             break;
+        case 7:
+            result = texture(uTex, vTexCoord).rgb;
+            result = neg(result);
+            break;
         default:
             result = texture(uTex, vTexCoord).rgb;
             break;
@@ -97,6 +106,12 @@ void main() {
     FragColor = vec4(result, 1.0f);
 
     if (isUnderwater) {
-        FragColor = mix(FragColor, texture(uTemp, vTexCoord), 0.25f);
+        vec4 twoFrameMerge;
+        if (kernelType == 7) {
+            twoFrameMerge = mix(vec4(neg(texture(uTempA, vTexCoord).rgb), 1.0f), vec4(neg(texture(uTempB, vTexCoord).rgb), 1.0), 0.85f);
+        } else {
+            twoFrameMerge = mix(texture(uTempA, vTexCoord), texture(uTempB, vTexCoord), 0.85f);
+        }
+        FragColor = mix(FragColor, twoFrameMerge, 0.75f);
     }
 }

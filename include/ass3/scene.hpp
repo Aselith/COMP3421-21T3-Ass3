@@ -29,6 +29,7 @@ namespace scene {
     const float SCREEN_DISTANCE       = 0.25f;
     const int   REFLECTION_SIZE       = 2560;
     const int   VOID_LEVEL            = -5;
+    const float ZFIGHT_OFFSET         = 0.01f;
 
 
     struct node_t {
@@ -339,7 +340,7 @@ namespace scene {
      */
     node_t createFlatSquare(GLuint texID, bool invert);
 
-    node_t createSeaSurface(GLuint texID, int width);
+    node_t createFlatSurface(GLuint texID, int width);
 
     /**
      * @brief Create a Sky Box object
@@ -371,7 +372,8 @@ namespace scene {
 
         size_t worldWidth = 110;
         const size_t WORLD_HEIGHT = 50;
-        size_t seaSize = 0;
+        size_t seaSize = 0, cloudSize = 0;
+        GLfloat cloudOffset = 0, cloudOriginalZ = 0;
         
         playerModel player;
         GLfloat worldTime = 0;
@@ -401,7 +403,7 @@ namespace scene {
         node_t highlightedBlock;
         node_t bed;
         node_t skyBox;
-        node_t seaSurface;
+        node_t seaSurface, clouds;
         
         std::vector<blockData> hotbar;
         std::vector<blockData> hotbarSecondary;
@@ -435,11 +437,22 @@ namespace scene {
             GLuint flyingIcon = texture_2d::init("./res/textures/flying_mode.png");
 
             // SETTING UP SEA FLOOR
-            seaSize = 5 * worldWidth;
-            seaSurface = createSeaSurface(0, seaSize);
+            seaSize = 100 * worldWidth;
+            cloudSize = 10 * worldWidth;
+            seaSurface = createFlatSurface(0, seaSize);
             seaSurface.translation.x = worldWidth / 2.0f;
             seaSurface.translation.z = worldWidth / 2.0f;
-            seaSurface.translation.y = VOID_LEVEL + 0.001f;
+            seaSurface.translation.y = VOID_LEVEL + ZFIGHT_OFFSET;
+
+            // SETTING UP CLOUDS
+            clouds = createFlatSurface(texture_2d::init("./res/textures/clouds.png"), 4);
+            clouds.bloomTexID = texture_2d::init("./res/textures/clouds_bloom.png");
+            clouds.translation.x = (float)worldWidth / 2.0f;
+            cloudOriginalZ = clouds.translation.z;
+            clouds.translation.z = (float)worldWidth / 2.0f;
+            clouds.translation.y = ((float)WORLD_HEIGHT * 0.8f) + ZFIGHT_OFFSET * 2;
+            clouds.scale *= glm::vec3(cloudSize, 1, cloudSize);
+            clouds.ignoreCulling = true;
 
             // SETTING UP CENTRE OF WORLD SCENE GRAPH
             // Setting up moon phases
@@ -455,7 +468,7 @@ namespace scene {
             moonPhase = rand() % (int)moonPhases.size();
 
             highlightedBlock = scene::createBlock(0, 0, 0, texture_2d::init("./res/textures/blocks/highlight.png"), 0, false, false, true);
-            highlightedBlock.scale = glm::vec3(1.001, 1.001, 1.001);
+            highlightedBlock.scale = glm::vec3(1.0005f, 1.0005f, 1.0005f);
             // Setting up Sun
             node_t sun = scene::createBlock(0, 0, 0, texture_2d::init("./res/textures/blocks/sun.png"), 0, false, true, false);
             sun.illuminating = true;
@@ -677,7 +690,8 @@ namespace scene {
         }
 
         void changeSeaLevel(int direction) {
-            seaSurface.translation.y -= 0.001f;
+            if (cutsceneEnabled) return;
+            seaSurface.translation.y -= ZFIGHT_OFFSET;
             if (direction > 0) {
                 seaSurface.translation.y += 0.5f;
             } else {
@@ -692,7 +706,7 @@ namespace scene {
             }
 
             // Preventing Z-fighting
-            seaSurface.translation.y += 0.001f ;
+            seaSurface.translation.y += ZFIGHT_OFFSET;
         }
 
         /**
@@ -759,6 +773,10 @@ namespace scene {
             if (playerCamera.pos.y != groundLevel + eyeLevel && !cutsceneEnabled) {
                 return;
             } else if (!check3x3Area(playerCamera.pos) && !cutsceneEnabled) {
+                std::cout << "You may not sleep, you are surrounded by blocks!\n";
+                return;
+            } else if (isUnderwater() && !cutsceneEnabled) {
+                std::cout << "You may not sleep, you are underwater!\n";
                 return;
             }
             cutsceneEnabled = !cutsceneEnabled;
@@ -790,7 +808,6 @@ namespace scene {
                 for (size_t j = tempPos.z - (size_t)1; j <= tempPos.z + 1; j++) {
                     if (isCoordOutBoundaries(i, tempPos.y, j)) continue;
                     if (!terrain.at(i).at(tempPos.y).at(j).air) {
-                        std::cout << "You may not sleep, you are surrounded by blocks!\n";
                         return false;
                     }
                 }
@@ -889,6 +906,9 @@ namespace scene {
             worldTime = fmod(abs(degree / 360.0f), 1.0f);
             centreOfWorld.translation = playerCamera.pos;
             centreOfWorld.rotation = glm::vec3(0, 0, degree);
+            // Move the cloud along
+            cloudOffset = fmod(cloudOffset + dt / ((cutsceneEnabled) ? 0.1f : 3.0f), cloudSize);
+            clouds.translation.z = cloudOriginalZ + cloudOffset;
         }
 
         /**

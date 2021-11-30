@@ -27,8 +27,8 @@ const int SHADOW_WIDTH = 8192;
 const int SHADOW_HEIGHT = 8192;
 const float W_PRESS_SPACE = 0.4f;
 const int BLOOM_INTENSITY = 12;
-const int TOTAL_TONE_MAPS = 7;
-const int TOTAL_KERNELS = 7;
+const int TOTAL_TONE_MAPS = 6;
+const int TOTAL_KERNELS = 8;
 
 // 0 -> Basic flat dirt world
 // 1 -> Wooly world
@@ -115,7 +115,7 @@ struct waterTextures {
     GLuint getFrame(float dt) {
         frame += dt;
         waterWaveCycle = fmod(waterWaveCycle + (dt / 3.0f), M_PI / 6.0f);
-        rippleCycle = fmod(rippleCycle + (dt * waveSpeed), 40.0f);
+        rippleCycle = fmod(rippleCycle + (dt * waveSpeed), 80.0f);
         if (frame > frameLen) {
             frame -= frameLen;
             currFrame++;
@@ -168,13 +168,13 @@ int main() {
     scene::world gameWorld(listOfBlocks, renderDistance, worldWidth, &defaultShader);
     if (worldType == 3) {
         // Turns off sea for skyblock
-        gameWorld.seaSurface.translation.y -= 0.501;
+        gameWorld.changeSeaLevel(-1);
     } else if (worldType == 5) {
         // Moves the water level up for parkour course map 2
         std::cout << "\nFind the single lone Marccoin hidden in the map!\n";
         gameWorld.seaSurface.translation.y = 0.501;
     }
-    
+
     // Creating different shaders
     renderer::renderer_t shadowShader;
     shadowShader.createProgram("shadow");
@@ -308,9 +308,6 @@ int main() {
                     case 5:
                         std::cout << "\"Unreal Tone Mapping\"\n";
                         break;
-                    case 6:
-                        std::cout << "\"Neg Tone Mapping\"\n";
-                        break;
                 }
                 break;
             case GLFW_KEY_T:
@@ -339,6 +336,9 @@ int main() {
                         break;
                     case 6:
                         std::cout << "\"Pixelated\"\n";
+                        break;
+                    case 7:
+                        std::cout << "\"Neg\"\n";
                         break;
                 }
                 break;
@@ -384,6 +384,7 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
+    glEnable(GL_CLIP_DISTANCE0);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -451,8 +452,12 @@ int main() {
     //
 
     // Previous frame buffer for temporal effects
-    GLuint temporalFrameFBO, temporalFrameTexID;
-    utility::createFramebuffers(&temporalFrameFBO, &temporalFrameTexID, WIN_WIDTH, WIN_HEIGHT);
+    GLuint temporalFrameAFBO, temporalFrameATexID;
+    utility::createFramebuffers(&temporalFrameAFBO, &temporalFrameATexID, WIN_WIDTH, WIN_HEIGHT);
+    GLuint temporalFrameBFBO, temporalFrameBTexID;
+    utility::createFramebuffers(&temporalFrameBFBO, &temporalFrameBTexID, WIN_WIDTH, WIN_HEIGHT);
+
+    
 
     // DEPTH MAP
     GLuint depthMapFBO, depthMapTexID;
@@ -488,10 +493,14 @@ int main() {
     float worldSize = gameWorld.getWorldSize();
     glm::vec3 *playerPosPtr = &gameWorld.playerCamera.pos;
 
+    glm::mat4 lightProjection, lightView, lightSpaceMatrix;
+    auto sunDistance = gameWorld.getSkyRadius();
+    float nearPlane = 0.0f, farPlane = 3 * sunDistance;
+    lightProjection = glm::ortho(-worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, -worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, nearPlane, farPlane);
+
     std::vector<GLuint> framebufferList = {waterReflectionFBO, waterRefractionFBO, untamperedFBO};
     // RENDER LOOP
     while (!glfwWindowShouldClose(window)) {
-        glEnable(GL_CLIP_DISTANCE0);
         int width, height;
         glfwGetWindowSize(window, &width, &height);
 
@@ -507,6 +516,13 @@ int main() {
             totalTime = 0;
         }
 
+        // Get input or animate cutscene depending on the cutscene status
+        if (gameWorld.getCutsceneStatus()) {
+            gameWorld.animateCutscene();
+        } else {
+            gameWorld.updatePlayerPositions(window, dt, &defaultShader);
+        }
+
         // Moving the day cycle around
         if (gameWorld.cutsceneEnabled) {
             degrees += 20.0f * dt;
@@ -518,31 +534,21 @@ int main() {
             degrees -= 360.0f;
         }
 
+        gameWorld.updateSunPosition(degrees, dt);
+
         // Changing and updating where the sun will be
         // sunPosition = glm::vec3(gameWorld.getCurrCamera()->pos.x + (renderDistance) * glm::cos(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.y + (renderDistance - 10) * glm::sin(glm::radians(degrees)), gameWorld.getCurrCamera()->pos.z);
-        auto sunDistance = gameWorld.getSkyRadius();
         glm::vec3 sunPosition = glm::vec3(playerPosPtr->x + (sunDistance) * glm::cos(glm::radians(degrees)), playerPosPtr->y + (sunDistance - 10) * glm::sin(glm::radians(degrees)), playerPosPtr->z);
         glm::vec3 sunPosOpp = glm::vec3(playerPosPtr->x + (sunDistance) * glm::cos(glm::radians(degrees + 180)), playerPosPtr->y + (sunDistance - 10) * glm::sin(glm::radians(degrees + 180)), playerPosPtr->z);
 
         defaultShader.sun_light_dir = glm::normalize(sunPosOpp - sunPosition);
         defaultShader.changeSunlight(degrees);
-
-        // Get input or animate cutscene depending on the cutscene status
-        if (gameWorld.getCutsceneStatus()) {
-            gameWorld.animateCutscene();
-        } else {
-            gameWorld.updatePlayerPositions(window, dt, &defaultShader);
-        }
-
-        gameWorld.updateSunPosition(degrees, dt);
     
         // Rendering the scene with an ortho camera
         shadowShader.activate();
-        glm::mat4 lightProjection, lightView, lightSpaceMatrix;
+        
 
         // Calculating light view
-        float nearPlane = 0.0f, farPlane = 3 * sunDistance;
-        lightProjection = glm::ortho(-worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, -worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, nearPlane, farPlane);
         lightView = glm::lookAt(sunPosition, {playerPosPtr->x, playerPosPtr->y, playerPosPtr->z}, glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
 
@@ -665,7 +671,7 @@ int main() {
                     scene::drawElement(&gameWorld.player.positionInWorld, glm::mat4(1.0f), defaultShader);
                 }
                 defaultShader.activate();
-    
+
                 // Drawing transparent block
                 defaultShader.activate();
                 glActiveTexture(GL_TEXTURE2);
@@ -673,7 +679,11 @@ int main() {
 
                 if (!gameWorld.cutsceneEnabled) gameWorld.drawHand(defaultShader);
                 
+                // Drawing cloud
+                scene::drawElement(&gameWorld.clouds, glm::mat4(1.0f), defaultShader);
+
                 gameWorld.drawTransTerrain(glm::mat4(1.0f), defaultShader, false);
+                
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
         
@@ -685,6 +695,7 @@ int main() {
             defaultShader.setInt("forceBlack", true);
             gameWorld.drawWorld(defaultShader, true, true);
             gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, false);
+            scene::drawBlock(&gameWorld.clouds, glm::mat4(1.0f), defaultShader, true);
             if (!gameWorld.cutsceneEnabled) gameWorld.drawHand(defaultShader);
             defaultShader.setInt("forceBlack", false);
             // Drawing the water
@@ -772,7 +783,8 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
         finalFrameShader.activate();
         finalFrameShader.setInt("kernelType", info.kernelType);
-        finalFrameShader.setInt("uTemp", 10);
+        finalFrameShader.setInt("uTempA", 10);
+        finalFrameShader.setInt("uTempB", 11);
         finalFrameShader.setInt("isUnderwater", gameWorld.isUnderwater());
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, finalFrameTexID);
@@ -781,7 +793,9 @@ int main() {
             glBindTexture(GL_TEXTURE_2D, finalFrameTexID);
         } else {
             glActiveTexture(GL_TEXTURE10);
-            glBindTexture(GL_TEXTURE_2D, temporalFrameTexID);
+            glBindTexture(GL_TEXTURE_2D, temporalFrameATexID);
+            glActiveTexture(GL_TEXTURE11);
+            glBindTexture(GL_TEXTURE_2D, temporalFrameBTexID);
         }
         utility::renderQuad();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -800,7 +814,13 @@ int main() {
         // Drawing to previous frame only if under water
         if (!gameWorld.isUnderwater()) continue;
         glViewport(0, 0, WIN_WIDTH, WIN_HEIGHT);
-        glBindFramebuffer(GL_FRAMEBUFFER, temporalFrameFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, temporalFrameBFBO);
+            glClear(GL_DEPTH_BITS | GL_COLOR_BUFFER_BIT);
+            copyFrameShader.activate();
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, temporalFrameATexID);
+            utility::renderQuad();
+        glBindFramebuffer(GL_FRAMEBUFFER, temporalFrameAFBO);
             glClear(GL_DEPTH_BITS | GL_COLOR_BUFFER_BIT);
             copyFrameShader.activate();
             glActiveTexture(GL_TEXTURE0);

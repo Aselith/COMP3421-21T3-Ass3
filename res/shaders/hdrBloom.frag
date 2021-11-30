@@ -68,10 +68,6 @@ vec3 tonemapUnreal(vec3 color) {
     return pow(color / (color + 0.155) * 1.019, vec3(GAMMA));
 }
 
-vec3 tonemapNeg(vec3 color) {
-    return vec3(1.0 - color.r, 1.0 - color.g, 1.0 - color.b);
-}
-
 void main() {
     vec3 hdrColor = vec3(0.0f), bloomColor = vec3(0.0f);
     float value = 12 * (vTexCoord.y - cycle);
@@ -121,9 +117,6 @@ void main() {
             break;
         case 5:
             result = tonemapUnreal(result);
-            break;
-        case 6:
-            result = tonemapNeg(result);
             break;
     }
     FragColor = vec4(result, 1.0);

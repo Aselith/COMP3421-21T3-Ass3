@@ -190,9 +190,9 @@ namespace shapes {
         return finalProduct;
     }
 
-    static_mesh::mesh_t createSeaSurface(int width) {
+    static_mesh::mesh_t createFlatSurface(int width) {
         static_mesh::mesh_template_t square;
-        auto size = width / 2;
+        GLfloat size = (float)width / 2.0f;
         square.positions = {
 
             {-size, 0.0,-size},
@@ -217,6 +217,7 @@ namespace shapes {
             0, 1, 2,
             0, 2, 3,
         };
+
         return static_mesh::init(square);
     }
 

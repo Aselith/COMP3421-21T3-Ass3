@@ -61,7 +61,8 @@ void main() {
     // Calculating dudvmap
     float rippleEffect = rippleCycle.x / rippleCycle.y;
 
-    vec2 distortTexCoords = texture(uDuDvMap, vec2(vTexCoord.x + rippleEffect, vTexCoord.y)).rg / 40.0f;
+    // Change the float value at the end to change the size
+    vec2 distortTexCoords = texture(uDuDvMap, vec2(vTexCoord.x + rippleEffect, vTexCoord.y)).rg / 80.0f;
     distortTexCoords = vTexCoord + vec2(distortTexCoords.x, distortTexCoords.y + rippleEffect);
     distortTexCoords /= 2;
     vec2 totalRipple = (texture(uDuDvMap, distortTexCoords).rg * 2.0 - 1.0) * WAVE_STRENGTH;

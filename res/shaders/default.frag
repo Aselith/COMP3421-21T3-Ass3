@@ -127,7 +127,7 @@ void main() {
     } else {
         // Calculating diffuse by lighting
         vec4 color = mix(uMat.color, texture(uTex, vTexCoord), uMat.texFactor);
-        if (forceBlack) color = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        if (forceBlack) color *= vec4(0.0f, 0.0f, 0.0f, 1.0f);
         color.rgb = rgbToLinear(color.rgb);
         
         vec3 ambient = rgbToLinear(uSun.color) * pow(uSun.ambient, 2.2);

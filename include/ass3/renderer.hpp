@@ -111,7 +111,7 @@ namespace renderer {
 			uDepth_loc = chicken3421::get_uniform_location(program, "uDepthMap");
 
 			// Get projection
-			projection = glm::perspective(glm::radians(60.0), (double) width / (double) height, 0.1, 50.0);
+			projection = glm::perspective(glm::radians(60.0), (double) width / (double) height, 0.1, 200.0);
 			// sunlight uniform locations
 			sun_direction_loc = chicken3421::get_uniform_location(program, "uSun.direction");
 			sun_color_loc = chicken3421::get_uniform_location(program, "uSun.color");
