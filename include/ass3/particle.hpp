@@ -13,15 +13,18 @@ namespace particle {
         static_mesh::mesh_t mesh;
         GLuint textureID = 0;
         glm::vec3 translation = glm::vec3(0.0);
-        glm::vec3 rotation = glm::vec3(0.0);
         glm::vec3 scale = glm::vec3(1.0);
         std::string name;
         GLfloat yVelocity, zVelocity, xVelocity;
+        GLfloat minimumYvalue;
         bool affectedByGravity = true;
+        GLuint bounceCount = 0.0f;
         GLfloat lifeTimer = 0.0f;
     };
 
     void spawnBlockBreakParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID);
+
+    void spawnImpactParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, int totalParticles = 18);
 
     void drawAllParticles(std::vector<particle_t *> *list, renderer::renderer_t defaultRender, glm::mat4 view, glm::mat4 proj, GLfloat gravity, GLfloat dt, bool animate = true);
 

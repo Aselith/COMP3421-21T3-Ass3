@@ -213,8 +213,8 @@ namespace shapes {
                 
             };
             // Randomly select from a different place on the texture
-            auto randPosX = utility::genRandFloat(0.0, 1.0f);
-            auto randPosY = utility::genRandFloat(0.0, 1.0f);
+            auto randPosX = (1.0f / 96.0f) * (float)(rand() % 10); 
+            auto randPosY = (1.0f / 16.0f) * (float)(rand() % 10); 
             for (size_t i = 0; i < square.tex_coords.size(); i++) {
                 square.tex_coords.at(i).x += randPosX;
                 square.tex_coords.at(i).y += randPosY;

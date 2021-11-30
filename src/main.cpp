@@ -127,7 +127,7 @@ struct waterTextures {
 };
 
 int main() {
-
+    srand(time(nullptr));
     // Printing welcome message
     int worldType = 0, renderDistance = 0, worldWidth = 0, frameLimiter = 1;
     std::cout << "\n\u001B[34mWelcome to a clone of Minecraft, created by z5309206 for COMP3421 ass3 21T3 UNSW!\n\n\u001B[0m";
@@ -692,8 +692,11 @@ int main() {
 
                 // Draw particles
                 particleShader.activate();
+                particleShader.setInt("forceBlack", false);
                 particleShader.setVec4("plane", clipPlane);
-                particleShader.setVec3("avgColor", info.avgColor);
+                defaultShader.changeSunlight(degrees);
+                particleShader.setVec3("uSun.ambient", defaultShader.sun_light_color);
+                particleShader.setVec3("uSun.direction", defaultShader.sun_light_dir);
                 gameWorld.drawParticles(particleShader, defaultShader.projection, dt);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
@@ -726,6 +729,13 @@ int main() {
             glBindTexture(GL_TEXTURE_2D, waterCalculator.normalMap);
 
             scene::drawElement(&gameWorld.seaSurface, glm::mat4(1.0f), waterShader);
+            // Drawing particles
+            particleShader.activate();
+            particleShader.setInt("forceBlack", true);
+            particleShader.setVec4("plane", clipPlane);
+            particleShader.setVec3("uSun.ambient", defaultShader.sun_light_color);
+            particleShader.setVec3("uSun.direction", defaultShader.sun_light_dir);
+            gameWorld.drawParticles(particleShader, defaultShader.projection, dt, false);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Copy the frame over to the ping pong FBO

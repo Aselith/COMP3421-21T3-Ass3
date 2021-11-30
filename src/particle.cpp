@@ -10,11 +10,11 @@
 
 namespace particle {
 
-	const int TOTAL_BREAK_PARTICLES = 16;
+	const float RADIUS = 0.5f;
 
 	void spawnBlockBreakParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID) {
-		GLfloat sign = 0;
-		for (int i = 0; i < TOTAL_BREAK_PARTICLES; i++) {
+		int totalParticles = (rand() % 10) + 8;
+		for (int i = 0; i < totalParticles; i++) {
 			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 			newParticle->mesh = shapes::createParticle(true);
@@ -22,23 +22,51 @@ namespace particle {
 			newParticle->affectedByGravity = true;
 			newParticle->lifeTimer = 5.0f; // Only lasts for 5 seconds
 			newParticle->translation = position;
+			newParticle->minimumYvalue = -999.0f;
+			newParticle->bounceCount = 0;
 
-			sign = (rand() % 2 == 0) ? -1.0f : 1.0f;
-			newParticle->yVelocity = sign * utility::genRandFloat(4.0f, 6.5f);
-			sign = (rand() % 2 == 0) ? -1.0f : 1.0f;
-			newParticle->xVelocity = sign * utility::genRandFloat(0.5f, 1.5f);
-			sign = (rand() % 2 == 0) ? -1.0f : 1.0f;
-			newParticle->zVelocity = sign * utility::genRandFloat(0.5f, 1.5f);
+			newParticle->yVelocity = utility::genRandFloat(3.0f, 6.5f);
+			newParticle->xVelocity = utility::genRandFloat(-1.5f, 1.5f);
+			newParticle->zVelocity = utility::genRandFloat(-1.5f, 1.5f);
 
 			// Assigning a random position
-			sign = (rand() % 2 == 0) ? -1.0f : 1.0f;
-			newParticle->translation.x += sign * utility::genRandFloat(0.0f, 0.3f);
-			sign = (rand() % 2 == 0) ? -1.0f : 1.0f;
-			newParticle->translation.y += sign * utility::genRandFloat(0.0f, 0.3f);
-			sign = (rand() % 2 == 0) ? -1.0f : 1.0f;
-			newParticle->translation.z += sign * utility::genRandFloat(0.0f, 0.3f);
+			newParticle->translation.x += utility::genRandFloat(-0.3f, 0.3f);
+			newParticle->translation.y += utility::genRandFloat(-0.3f, 0.3f);
+			newParticle->translation.z += utility::genRandFloat(-0.3f, 0.3f);
 
-			newParticle->rotation = glm::vec3(0.0f);
+			newParticle->scale = glm::vec3(0.1875f, 0.1875f, 0.1875f);
+			
+			list->push_back(newParticle);
+		}
+
+		return;
+	}
+
+	void spawnImpactParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, int totalParticles) {
+		// Error checking. Don't spawn any particles if texture is invalid
+		if (texID == 0) return;
+		GLfloat sign = 0;
+		for (int i = 0; i < totalParticles; i++) {
+			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
+
+			newParticle->mesh = shapes::createParticle(true);
+			newParticle->textureID = texID;
+			newParticle->affectedByGravity = true;
+			newParticle->lifeTimer = utility::genRandFloat(3.5f, 12.0f);
+			newParticle->translation.x = position.x;
+			newParticle->translation.y = position.y;
+			newParticle->translation.z = position.z;
+			newParticle->minimumYvalue = position.y;
+			newParticle->bounceCount = 3;
+			newParticle->yVelocity = utility::genRandFloat(4.0f, 5.5f);
+
+			sign = (rand() % 2 == 0) ? -1.0f : 1.0f;
+			auto xPoint = utility::genRandFloat(-0.5f, 0.5f);
+			auto zPoint = sign * glm::sqrt(abs((xPoint * xPoint) - (RADIUS * RADIUS)));
+	
+			newParticle->xVelocity = xPoint * utility::genRandFloat(1.0f, 3.0f);
+			newParticle->zVelocity = zPoint * utility::genRandFloat(1.0f, 3.0f);
+
 			newParticle->scale = glm::vec3(0.1875f, 0.1875f, 0.1875f);
 			
 			list->push_back(newParticle);
@@ -50,15 +78,11 @@ namespace particle {
     void drawAllParticles(std::vector<particle_t *> *list, renderer::renderer_t particleRender, glm::mat4 view, glm::mat4 proj, GLfloat gravity, GLfloat dt, bool animate) {
 		size_t index = 0;
 		while (index < list->size()) {
-			particle_t* particlePointer = list->at(index);
 
-			if (animate) animateParticle(particlePointer, gravity, dt);
+			particle_t* particlePointer = list->at(index);
 	
 			auto model = glm::mat4(1.0f);
 			model *= glm::translate(glm::mat4(1.0), particlePointer->translation);
-			model *= glm::rotate(glm::mat4(1.0), glm::radians(particlePointer->rotation.z), glm::vec3(0, 0, 1));
-			model *= glm::rotate(glm::mat4(1.0), glm::radians(particlePointer->rotation.y), glm::vec3(0, 1, 0));
-			model *= glm::rotate(glm::mat4(1.0), glm::radians(particlePointer->rotation.x), glm::vec3(1, 0, 0));
 
 			particleRender.setMat4("uProj", proj);
 			auto viewModel = view * model;
@@ -94,8 +118,10 @@ namespace particle {
 				free(list->at(index));
 				list->erase(list->begin() + (int)index);
 			} else {
+				if (animate) animateParticle(particlePointer, gravity, dt);
 				index++;
 			}
+			
 		}
 	}
 
@@ -105,6 +131,21 @@ namespace particle {
 		particlePointer->translation.z += particlePointer->zVelocity * dt * 0.5f;
 		if (particlePointer->affectedByGravity) {
 			particlePointer->yVelocity += gravity * dt * 0.5f;
+		}
+		if (particlePointer->translation.y < particlePointer->minimumYvalue) {
+			if (particlePointer->bounceCount > 0) {
+				particlePointer->translation.y = particlePointer->minimumYvalue;
+				particlePointer->yVelocity = -particlePointer->yVelocity * 0.4f;
+				particlePointer->xVelocity /= 2.0f;
+				particlePointer->zVelocity /= 2.0f;
+				particlePointer->bounceCount--;
+			} else {
+				particlePointer->translation.y = particlePointer->minimumYvalue;
+				particlePointer->yVelocity = 0.0f;
+				particlePointer->xVelocity = 0.0f;
+				particlePointer->zVelocity = 0.0f;
+			}
+			
 		}
 		particlePointer->lifeTimer -= dt;
 

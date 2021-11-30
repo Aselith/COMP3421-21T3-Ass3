@@ -920,7 +920,7 @@ namespace scene {
         void bobHand(float dt) {
 
             // Only bob hand if the player is on the ground
-            if (playerCamera.pos.y == (float)groundLevel + eyeLevel && swingCycle == -1.0f) {
+            if (swingCycle == -1.0f) {
                 // Controls how fast to bobhand
                 dt *= walkingMultiplier;
                 walkCycle += dt * 2.0f;
@@ -1367,7 +1367,16 @@ namespace scene {
             } else {
                 player.idleAnimation(dt, swingCycle);
             }
-            if (originalPosition != playerCamera.pos) {
+            if (originalPosition != playerCamera.pos && playerCamera.pos.y == (float)groundLevel + eyeLevel) {
+                if (rand() % 2 == 0 && runningMode) {
+                    // Spawn "footprint" particle with 1/2 chance
+                    particle::spawnImpactParticles(
+                        &listOfParticles,
+                        glm::vec3(playerCamera.pos.x,(float)groundLevel - 0.5f, playerCamera.pos.z),
+                        blockBelowTexID(),
+                        rand() % 2 + 1
+                    );
+                }
                 bobHand(dt);
             }
             player.tiltHead(playerCamera.pitch);
@@ -1399,12 +1408,17 @@ namespace scene {
                 auto terminalVelocity = isUnderwater() ? 2.0f : 40.0f;
                 playerCamera.yVelocity = glm::clamp(playerCamera.yVelocity, -terminalVelocity, terminalVelocity);
 
-                if (playerCamera.pos.y < groundLevel + eyeLevel) {
+                if (playerCamera.pos.y < (float)groundLevel + eyeLevel) {
                     // Prevents player from falling through the ground
-                    playerCamera.pos.y = groundLevel + eyeLevel;
+
+                    if (abs(playerCamera.yVelocity) >= 7.0f) {
+                        particle::spawnImpactParticles(&listOfParticles, glm::vec3(playerCamera.pos.x, (float)groundLevel - 0.5f, playerCamera.pos.z), blockBelowTexID());
+                    }
+
+                    playerCamera.pos.y = (float)groundLevel + eyeLevel;
                     // Controls the bounciness of the slime block
                     if (strcmp(blockBelowName().c_str(), "slime_block") == 0) {
-                        playerCamera.yVelocity = abs(playerCamera.yVelocity) * 0.75 + GRAVITY * dt;
+                        playerCamera.yVelocity = abs(playerCamera.yVelocity) * 0.75f + GRAVITY * dt;
                         if (playerCamera.yVelocity >= 4.0f && !shiftMode) {
                             // Enacting gravity
                             playerCamera.pos.y += playerCamera.yVelocity * dt;
@@ -1478,6 +1492,28 @@ namespace scene {
             } else {
                 return "";
             }
+        }
+
+        GLuint blockBelowTexID() {
+            glm::vec3 blockPos = {round(playerCamera.pos.x), groundLevel - 1, round(playerCamera.pos.z)};
+    
+            if (!isCoordOutBoundaries(blockPos.x, blockPos.y, blockPos.z)) {
+                if (terrain.at(blockPos.x).at(blockPos.y).at(blockPos.z).textureID != 0) {
+                    return terrain.at(blockPos.x).at(blockPos.y).at(blockPos.z).textureID;
+                }
+            }
+            
+            for (int x = -1; x <= 1; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    if (x == z) continue;
+                    if (isCoordOutBoundaries(blockPos.x + x, blockPos.y, blockPos.z + z)) continue;
+                    auto id = terrain.at(blockPos.x + x).at(blockPos.y).at(blockPos.z + z).textureID;
+                    if (id != 0) {
+                        return id;
+                    }
+                }
+            }
+            return 0;
         }
 
         /**

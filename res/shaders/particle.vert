@@ -8,6 +8,7 @@ out vec2 vTexCoord;
 uniform mat4 uProj;
 uniform mat4 uViewModel;
 uniform mat4 uModel;
+uniform mat4 uLightProj;
 
 uniform vec4 plane;
 

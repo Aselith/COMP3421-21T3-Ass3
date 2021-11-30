@@ -6,12 +6,24 @@ in vec2 vTexCoord;
 
 out vec4 FragColor;
 
+struct DirLight {
+    vec3 direction;
+    vec3 ambient;
+};
+
 uniform sampler2D uTex;
-uniform vec3 avgColor; 
+uniform bool forceBlack;
+uniform DirLight uSun;
+
 
 void main() {
-    float lumin = 0.2126f * avgColor.r + 0.7152f * avgColor.g + 0.0722f * avgColor.b;
-    lumin = clamp(lumin * 1.2f, 0.0f, 1.0f);
-    FragColor = vec4(texture(uTex, vTexCoord).rgb, 1.0f);
-    FragColor = mix(vec4(0.0f, 0.0f, 0.0f, 1.0f), FragColor, lumin);
+    if (forceBlack) {
+        FragColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    } else {
+
+        float lightNormal = max(0.1f, dot(uSun.direction, vec3(0, 1, 0)));
+        vec4 lightColor = mix(vec4(uSun.ambient, 1.0f), vec4(0.0f, 0.0f, 0.0f, 1.0f), 0.85f);
+        vec4 baseColor = texture(uTex, vTexCoord);
+        FragColor = mix(baseColor, vec4(lightColor.rgb, baseColor.a), lightNormal * 0.8f);
+    }
 }
