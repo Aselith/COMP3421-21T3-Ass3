@@ -88,7 +88,7 @@ void main() {
 
     // Calculating the fresnel effect
     float mixFactor = uPitchFactor.x / uPitchFactor.y;
-    mixFactor = clamp(mixFactor, 0.15f, 0.85f);
+    mixFactor = clamp(mixFactor, 0.20f, 0.85f);
 
     vec4 reflectTex = texture(uReflection, seaReflectionCoord);
     vec4 refractTex = texture(uRefraction, seaRefractionCoord);

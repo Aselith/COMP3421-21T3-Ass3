@@ -27,6 +27,12 @@ namespace utility {
         then = now;
         return dt;
     }
+
+	float genRandFloat(float min, float max) {
+		float random = ((float) rand()) / (float) RAND_MAX;
+		float diff = max - min;
+		return min + (random * diff);
+	}
 	
 	bool isInRange(float value, float min, float max) {
 		return value >= min && value < max;
@@ -89,7 +95,7 @@ namespace utility {
 		return model;
 	}
 
-	GLfloat findIlluminance(int screenWidth, int screenHeight, GLuint frame) {
+	glm::vec3 findAvgColor(int screenWidth, int screenHeight, GLuint frame) {
 		/*
 		OLD CODE TO FINDING LUMINESCENE, REPLACED WITH MIPMAPPING TECHNIQUE
 		glm::vec3 luminescene;
@@ -118,7 +124,7 @@ namespace utility {
 	
 		glGetTexImage(GL_TEXTURE_2D, size, GL_RGB, GL_FLOAT, &luminescene);
 
-		return 0.2126 * luminescene.r + 0.7152 * luminescene.g + 0.0722 * luminescene.b;
+		return luminescene;
 	}
 
 	GLfloat lerp(GLfloat posA, GLfloat posB, GLfloat by) {

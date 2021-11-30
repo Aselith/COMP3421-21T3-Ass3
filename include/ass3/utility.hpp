@@ -21,6 +21,8 @@ namespace utility {
      */
     float time_now();
 
+    float genRandFloat(float min, float max);
+
     /**
      * @brief Returns the difference in time between when this function was previously called and this call.
      * @return A float representing the difference between function calls in seconds.
@@ -50,7 +52,7 @@ namespace utility {
      * @brief 
      * 
      */
-    GLfloat findIlluminance(int screenWidth, int screenHeight, GLuint frame);
+    glm::vec3 findAvgColor(int screenWidth, int screenHeight, GLuint frame);
 
     GLfloat lerp(GLfloat posA, GLfloat posB, GLfloat by);
 

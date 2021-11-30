@@ -112,6 +112,6 @@ void main() {
         } else {
             twoFrameMerge = mix(texture(uTempA, vTexCoord), texture(uTempB, vTexCoord), 0.85f);
         }
-        FragColor = mix(FragColor, twoFrameMerge, 0.75f);
+        FragColor = mix(FragColor, twoFrameMerge, 0.90f);
     }
 }

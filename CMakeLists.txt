@@ -32,6 +32,7 @@ target_sources(${ACTIVITY}
         ${target}
         PRIVATE
 
+        include/ass3/particle.hpp
         include/ass3/renderer.hpp
         include/ass3/frustum.hpp
         include/ass3/loader.hpp
@@ -43,6 +44,7 @@ target_sources(${ACTIVITY}
         include/ass3/static_mesh.hpp
         include/ass3/shapes.hpp
         
+        src/particle.cpp
         src/frustum.cpp
         src/loader.cpp
         src/utility.cpp

@@ -23,6 +23,8 @@ namespace shapes {
      */
     static_mesh::mesh_t createFlatSquare(bool invert);
 
+    static_mesh::mesh_t createParticle(bool sampleTexture);
+
     static_mesh::mesh_t createSkybox();
 
     static_mesh::mesh_t createFlatSurface(int width);

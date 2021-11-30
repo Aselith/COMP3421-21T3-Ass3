@@ -41,6 +41,7 @@ struct pointerInformation {
     scene::world *gameWorld;
     renderer::renderer_t *defaultShader;
     float frameRate = 0, lastWPressed = 0;
+    glm::vec3 avgColor = glm::vec3(0.0f);
     float exposureLevel = 10.0f, averageIlluminance = 0;
     GLint hdrType = 1, kernelType = 0, enableExperimental = 0;
 };
@@ -199,6 +200,9 @@ int main() {
 
     renderer::renderer_t copyFrameShader;
     copyFrameShader.createProgram("copyFrame");
+
+    renderer::renderer_t particleShader;
+    particleShader.createProgram("particle");
 
     dayNightTextureSystem dayNightCalculator;
     waterTextures waterCalculator;
@@ -492,6 +496,7 @@ int main() {
 
     float worldSize = gameWorld.getWorldSize();
     glm::vec3 *playerPosPtr = &gameWorld.playerCamera.pos;
+    glm::vec4 clipPlane;
 
     glm::mat4 lightProjection, lightView, lightSpaceMatrix;
     auto sunDistance = gameWorld.getSkyRadius();
@@ -572,6 +577,7 @@ int main() {
         glUniformMatrix4fv(defaultShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
         // Drawing world via reflection, refraction and then via untampered
+        
         for (auto currFBO : framebufferList) {
             glBindFramebuffer(GL_FRAMEBUFFER, currFBO);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -584,25 +590,25 @@ int main() {
                     gameWorld.useReflectionCam = true;
                     if (gameWorld.isUnderwater()) {
                         // Clip above if underwater
-                        defaultShader.setVec4("plane", glm::vec4(0, -1, 0, gameWorld.seaSurface.translation.y));
+                        clipPlane = glm::vec4(0, -1, 0, gameWorld.seaSurface.translation.y);
                     } else{
                         // Clip below if not under water
-                        defaultShader.setVec4("plane", glm::vec4(0, 1, 0, -gameWorld.seaSurface.translation.y));
+                        clipPlane = glm::vec4(0, 1, 0, -gameWorld.seaSurface.translation.y);
                     }
                 } else if (currFBO == waterRefractionFBO) {
                     if (!gameWorld.isUnderwater()) {
                         // Clip above if not underwater
-                        defaultShader.setVec4("plane", glm::vec4(0, -1, 0, gameWorld.seaSurface.translation.y));
+                        clipPlane = glm::vec4(0, -1, 0, gameWorld.seaSurface.translation.y);
                     } else{
                         // Clip below if under water
-                        defaultShader.setVec4("plane", glm::vec4(0, 1, 0, -gameWorld.seaSurface.translation.y));
+                        clipPlane = glm::vec4(0, 1, 0, -gameWorld.seaSurface.translation.y);
                     }
                     gameWorld.useReflectionCam = false;
                 } else {
                     gameWorld.drawCelestials = true;
-                    defaultShader.setVec4("plane", glm::vec4(0, 1, 0, -scene::VOID_LEVEL));
-                    gameWorld.useReflectionCam = false;
+                    clipPlane = glm::vec4(0, 1, 0, -scene::VOID_LEVEL);
                 }
+                defaultShader.setVec4("plane", clipPlane);
                 defaultShader.setMat4("uViewProj", defaultShader.projection * gameWorld.getCurrCamera()->get_view());
                 defaultShader.setInt("forceBlack", false);
                 defaultShader.setInt("affectedByShadows", true);
@@ -670,7 +676,7 @@ int main() {
                     gameWorld.player.positionInWorld.translation = gameWorld.playerCamera.pos;
                     scene::drawElement(&gameWorld.player.positionInWorld, glm::mat4(1.0f), defaultShader);
                 }
-                defaultShader.activate();
+                
 
                 // Drawing transparent block
                 defaultShader.activate();
@@ -683,7 +689,12 @@ int main() {
                 scene::drawElement(&gameWorld.clouds, glm::mat4(1.0f), defaultShader);
 
                 gameWorld.drawTransTerrain(glm::mat4(1.0f), defaultShader, false);
-                
+
+                // Draw particles
+                particleShader.activate();
+                particleShader.setVec4("plane", clipPlane);
+                particleShader.setVec3("avgColor", info.avgColor);
+                gameWorld.drawParticles(particleShader, defaultShader.projection, dt);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
         
@@ -766,18 +777,15 @@ int main() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Auto adjusting the exposure values
-        if (info.hdrType == 1) {
-            info.averageIlluminance = utility::findIlluminance(WIN_WIDTH, WIN_HEIGHT, finalFrameTexID);
-            if (info.averageIlluminance != 0 && info.averageIlluminance < 50) {
-                auto correctExposure = 0.5 / info.averageIlluminance * 1.8;
-                if (utility::roundUp(info.exposureLevel, 2) != utility::roundUp(correctExposure, 2)) {
-                    info.exposureLevel = utility::lerp(info.exposureLevel, correctExposure, 0.05f);
-                }
-            }
-        } else {
-            info.exposureLevel = 2.0f;
-        }
 
+        info.avgColor = utility::findAvgColor(WIN_WIDTH, WIN_HEIGHT, finalFrameTexID);
+        info.averageIlluminance = 0.2126f * info.avgColor.r + 0.7152f * info.avgColor.g + 0.0722f * info.avgColor.b;
+        if (info.averageIlluminance != 0 && info.averageIlluminance < 50) {
+            auto correctExposure = 0.5 / info.averageIlluminance * 1.8;
+            if (utility::roundUp(info.exposureLevel, 2) != utility::roundUp(correctExposure, 2)) {
+                info.exposureLevel = utility::lerp(info.exposureLevel, correctExposure, 0.05f);
+            }
+        }
         // Drawing the final frame, mixed with the previous frame
         utility::resizeWindow(WIN_WIDTH, WIN_HEIGHT, width, height);
         glClear(GL_COLOR_BUFFER_BIT);

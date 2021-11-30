@@ -190,6 +190,59 @@ namespace shapes {
         return finalProduct;
     }
 
+
+    static_mesh::mesh_t createParticle(bool sampleTexture) {
+        static_mesh::mesh_template_t square;
+
+        square.positions = {
+
+            {-0.5f, -0.5f, 0.0f},
+            { 0.5f, -0.5f, 0.0f},
+            { 0.5f,  0.5f, 0.0f},
+            {-0.5f,  0.5f, 0.0f},
+            
+        };
+        
+        if (sampleTexture) {
+            square.tex_coords = {
+                
+                {  33.0f / 96.0f,  11.0f / 16.0f},
+                {  36.0f / 96.0f,  11.0f / 16.0f},
+                {  36.0f / 96.0f,  14.0f / 16.0f},
+                {  33.0f / 96.0f,  14.0f / 16.0f},
+                
+            };
+            // Randomly select from a different place on the texture
+            auto randPosX = utility::genRandFloat(0.0, 1.0f);
+            auto randPosY = utility::genRandFloat(0.0, 1.0f);
+            for (size_t i = 0; i < square.tex_coords.size(); i++) {
+                square.tex_coords.at(i).x += randPosX;
+                square.tex_coords.at(i).y += randPosY;
+            }
+        } else {
+            square.tex_coords = {
+
+                {  0,  1},
+                {  1,  1},
+                {  1,  0},
+                {  0,  0},
+                
+            };
+        }
+        
+
+        square.indices = {
+            0, 2, 1,
+            0, 3, 2,
+            0, 2, 1,
+            0, 3, 2,
+            0, 1, 2,
+            0, 2, 3,
+        };
+
+        return static_mesh::init(square);
+    }
+
     static_mesh::mesh_t createFlatSurface(int width) {
         static_mesh::mesh_template_t square;
         GLfloat size = (float)width / 2.0f;
@@ -217,7 +270,10 @@ namespace shapes {
             0, 1, 2,
             0, 2, 3,
         };
-
+        utility::calcVertNormals(square);
+        for (auto i = size_t{0}; i < square.normals.size(); i++) {
+            square.normals[i] = glm::vec3(0, 1, 0);
+        }
         return static_mesh::init(square);
     }
 

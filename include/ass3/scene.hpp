@@ -14,6 +14,7 @@
 #include <ass3/player.hpp>
 #include <ass3/texture_2d.hpp>
 #include <ass3/renderer.hpp>
+#include <ass3/particle.hpp>
 
 #include <math.h>
 #include <vector>
@@ -30,7 +31,6 @@ namespace scene {
     const int   REFLECTION_SIZE       = 2560;
     const int   VOID_LEVEL            = -5;
     const float ZFIGHT_OFFSET         = 0.01f;
-
 
     struct node_t {
         static_mesh::mesh_t mesh;
@@ -393,6 +393,7 @@ namespace scene {
         size_t moonPhase = 0;
 
         std::vector<std::vector<std::vector<node_t>>> terrain;
+        std::vector<particle::particle_t *> listOfParticles;
         std::vector<node_t *> listOfBlocksToRender;
         std::vector<node_t *> listOfTransBlocksToRender;
         std::vector<node_t *> listOfShinyBlocksToRender;
@@ -762,7 +763,7 @@ namespace scene {
         }
 
         int getSkyRadius() {
-            return 30.0f;
+            return 30;
         }
 
         /**
@@ -1156,6 +1157,7 @@ namespace scene {
             }
 
             if (!terrain.at(placeX).at(placeY).at(placeZ).air) {
+                auto blockTex = terrain.at(placeX).at(placeY).at(placeZ).textureID;
                 terrain.at(placeX).at(placeY).at(placeZ).air = true;
                 terrain.at(placeX).at(placeY).at(placeZ).transparent = true;
                 terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -1165,6 +1167,7 @@ namespace scene {
                 }
                 // If program reaches here, the blocks to be rendered must be updated
                 updateBlocksToRender(true);
+                particle::spawnBlockBreakParticles(&listOfParticles, glm::vec3(placeX, placeY, placeZ), blockTex);
             }
         }
 
@@ -1552,6 +1555,11 @@ namespace scene {
 
         bool isUnderwater() {
             return seaSurface.translation.y >= glm::round(playerCamera.pos.y - 0.03f);
+        }
+
+        void drawParticles(renderer::renderer_t particleRender, glm::mat4 proj, float dt, bool animate = true) {
+            if (strcmp(particleRender.type.c_str(), "particle") != 0) return;
+            particle::drawAllParticles(&listOfParticles, particleRender, getCurrCamera()->get_view(), proj, GRAVITY, dt, animate);
         }
 
         /**
