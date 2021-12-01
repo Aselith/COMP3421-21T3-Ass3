@@ -28,9 +28,12 @@ namespace scene {
     const float CAMERA_SPEED          = 5.0f;
     const float PLAYER_RADIUS         = 0.25f; // 0.25
     const float SCREEN_DISTANCE       = 0.25f;
-    const int   REFLECTION_SIZE       = 2560;
+    const int   REFLECTION_SIZE       = 128;
     const int   VOID_LEVEL            = -5;
     const float ZFIGHT_OFFSET         = 0.01f;
+
+    const int   TOTAL_SMOKE           = 12;
+    const int   TOTAL_FISH            = 4;
 
     struct node_t {
         static_mesh::mesh_t mesh;
@@ -381,10 +384,10 @@ namespace scene {
         float eyeLevel = 1.0f;
         bool shiftMode = false;
         float walkingMultiplier = 0.5f;
-        bool cutsceneEnabled = false, useReflectionCam = false, useCubemapCam = false, drawCelestials = true;;
-        player::playerPOV playerCamera, cutsceneCamera, reflectionCamera, cubemapCamera;
+        bool cutsceneEnabled = false, useReflectionCam = false, drawCelestials = true;;
+        player::playerPOV playerCamera, cutsceneCamera, reflectionCamera;
         glm::vec3 oldPos, oldHandPos, oldHandRotation, lastRenderedPos;
-        int increments = 200;
+        int increments = 200, reflectionFrame = 0;
         int playerReachRange = 4 * increments;
         int groundLevel = -99999, aboveLevel = 99999;
         float cutsceneTick = 0;
@@ -405,6 +408,30 @@ namespace scene {
         node_t bed;
         node_t skyBox;
         node_t seaSurface, clouds;
+
+        // Particles
+        GLuint bubble = texture_2d::init("./res/textures/particles/bubble.png");
+        GLuint tear = texture_2d::init("./res/textures/particles/obsidian_tear.png");
+        GLuint smokeParticles[TOTAL_SMOKE] = {
+            texture_2d::init("./res/textures/particles/big_smoke_0.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_1.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_2.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_3.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_4.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_5.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_6.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_7.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_8.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_9.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_10.png"),
+            texture_2d::init("./res/textures/particles/big_smoke_11.png")
+        };
+        GLuint fish[TOTAL_FISH] = {
+            texture_2d::init("./res/textures/particles/fish/salmonA.png"),
+            texture_2d::init("./res/textures/particles/fish/codA.png"),
+            texture_2d::init("./res/textures/particles/fish/salmonB.png"),
+            texture_2d::init("./res/textures/particles/fish/codB.png")
+        };
         
         std::vector<blockData> hotbar;
         std::vector<blockData> hotbarSecondary;
@@ -542,6 +569,11 @@ namespace scene {
             hotbar.push_back(combineBlockData("marccoin_block", false, false, true));
             hotbar.push_back(combineBlockData("bedrock", false, false));
             hotbar.push_back(combineBlockData("wip", false, false));
+            hotbar.push_back(combineBlockData("coral_brain", false, false));
+            hotbar.push_back(combineBlockData("coral_bubble", false, false));
+            hotbar.push_back(combineBlockData("coral_fire", false, false));
+            hotbar.push_back(combineBlockData("coral_horn", false, false));
+            hotbar.push_back(combineBlockData("coral_tube", false, false));
             // Second hotbar
             hotbarSecondary.push_back(combineBlockData("white", false, false));
             hotbarSecondary.push_back(combineBlockData("orange", false, false));
@@ -672,9 +704,8 @@ namespace scene {
          * @return player::playerPOV* 
          */
         player::playerPOV *getCurrCamera() {
-            if (useCubemapCam) {
-                return &cubemapCamera;
-            } else if (useReflectionCam) {
+
+            if (useReflectionCam) {
                 return &reflectionCamera;
             } else if (cutsceneEnabled) {
                 return &cutsceneCamera;
@@ -1060,9 +1091,8 @@ namespace scene {
                 return glm::vec3(-1, -1, -1);
             } else if (giveBlockBefore) {
                 return glm::vec3((int)round(rayX - lookingDirection.x), (int)round(rayY - lookingDirection.y), (int)round(rayZ - lookingDirection.z));
-            } else {
-                return glm::vec3((int)round(rayX), (int)round(rayY), (int)round(rayZ));
             }
+            return glm::vec3((int)round(rayX), (int)round(rayY), (int)round(rayZ));
         }
 
         /**
@@ -1107,22 +1137,27 @@ namespace scene {
                     terrain.at(placeX).at(placeY).at(placeZ).transparent = true;
                     terrain.at(placeX).at(placeY).at(placeZ).lightID = -1;
                     return;
-                } else if (hotbar[hotbarIndex].rotatable && abs(playerCamera.pitch) <= 35.0f && !shiftMode) {
-                    // Rotate the block if it is a block that can be rotated
-                    // Blocks will not rotate if shift is being pressed
-                    switch (utility::getDirection(playerCamera.yaw)) {
-                        case 0:
-                            terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(90.0f, 0.0f, 0.0f);
-                            break;
-                        case 1:
-                            terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(0.0f, 0.0f, 90.0f);
-                            break;
-                        case 2:
-                            terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-                            break;
-                        case 3:
-                            terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(0.0f, 0.0f, -90.0f);
-                            break;
+                } else {
+                    if (hotbar[hotbarIndex].rotatable && abs(playerCamera.pitch) <= 35.0f && !shiftMode) {
+                        // Rotate the block if it is a block that can be rotated
+                        // Blocks will not rotate if shift is being pressed
+                        switch (utility::getDirection(playerCamera.yaw)) {
+                            case 0:
+                                terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(90.0f, 0.0f, 0.0f);
+                                break;
+                            case 1:
+                                terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(0.0f, 0.0f, 90.0f);
+                                break;
+                            case 2:
+                                terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+                                break;
+                            case 3:
+                                terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(0.0f, 0.0f, -90.0f);
+                                break;
+                        }
+                    }
+                    if (isUnderwater(placeBlockVector)) {
+                        particle::spawnFloatingParticles(&listOfParticles, glm::vec3(placeX, placeY, placeZ), bubble, seaSurface.translation.y);
                     }
                 }
 
@@ -1158,6 +1193,7 @@ namespace scene {
 
             if (!terrain.at(placeX).at(placeY).at(placeZ).air) {
                 auto blockTex = terrain.at(placeX).at(placeY).at(placeZ).textureID;
+                terrain.at(placeX).at(placeY).at(placeZ).textureID = 0;
                 terrain.at(placeX).at(placeY).at(placeZ).air = true;
                 terrain.at(placeX).at(placeY).at(placeZ).transparent = true;
                 terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -1167,7 +1203,10 @@ namespace scene {
                 }
                 // If program reaches here, the blocks to be rendered must be updated
                 updateBlocksToRender(true);
-                particle::spawnBlockBreakParticles(&listOfParticles, glm::vec3(placeX, placeY, placeZ), blockTex);
+                particle::spawnBlockBreakParticles(&listOfParticles, placeBlockVector, blockTex);
+                if (isUnderwater(placeBlockVector)) {
+                    particle::spawnFloatingParticles(&listOfParticles, placeBlockVector, bubble, seaSurface.translation.y);
+                }
             }
         }
 
@@ -1395,11 +1434,16 @@ namespace scene {
                 shiftMode = false;
             }
 
+            if (rand() % 10 == 0 && isUnderwater()) {
+                // Spawn bubbles around player
+                particle::spawnFloatingParticles(&listOfParticles, playerCamera.pos, bubble, seaSurface.translation.y, 3);
+            }
             // Enacting gravity onto the camera
             if (!flyingMode) {
 
                 playerCamera.pos.y += playerCamera.yVelocity * dt;
                 if (isUnderwater()) {
+                    
                     playerCamera.yVelocity += GRAVITY * dt;
                 } else {
                     playerCamera.yVelocity += GRAVITY * dt;
@@ -1553,23 +1597,30 @@ namespace scene {
          * @param direction (Positive to find the closest block above. Negative to find the closest block below)
          * @return int 
          */
-        int findClosestBlockAboveBelow(int direction) {
+        int findClosestBlockAboveBelow(int direction, glm::vec3 pos = {-999, -999, -999}) {
+            float posX, posY, posZ;
+            if (pos.x == -999 && pos.y == -999 && pos.z == -999) {
+                posY = playerCamera.pos.y - eyeLevel;
+                posX = playerCamera.pos.x;
+                posZ = playerCamera.pos.z;
+            } else {
+                posY = pos.y;
+                posX = pos.x;
+                posZ = pos.z;
+            }
             
-            float playerPosY = playerCamera.pos.y - eyeLevel;
-            float playerPosX = playerCamera.pos.x;
-            float playerPosZ = playerCamera.pos.z;
 
             int maxInt = (direction < 0) ? 1 : WORLD_HEIGHT;
 
-            for (int i = (int)playerPosY; i * direction < maxInt; i += direction) {
-                int xPosRd = (int)round(playerPosX);
+            for (int i = (int)posY; i * direction < maxInt; i += direction) {
+                int xPosRd = (int)round(posX);
                 int yPosRd = (int)round(i);
-                int zPosRd = (int)round(playerPosZ);
+                int zPosRd = (int)round(posZ);
 
                 // Checks around the player in a circle if they are touching a block or not
                 for (float degree = 0; degree < 360.0f; degree += 5.0f) {
-                    xPosRd = (int)round(playerPosX + PLAYER_RADIUS * (float)glm::sin(glm::radians(degree)));
-                    zPosRd = (int)round(playerPosZ + PLAYER_RADIUS * (float)-glm::cos(glm::radians(degree)));
+                    xPosRd = (int)round(posX + PLAYER_RADIUS * (float)glm::sin(glm::radians(degree)));
+                    zPosRd = (int)round(posZ + PLAYER_RADIUS * (float)-glm::cos(glm::radians(degree)));
                     if (isCoordOutBoundaries(xPosRd, yPosRd, zPosRd)) {
                         continue;
                     }
@@ -1591,6 +1642,10 @@ namespace scene {
 
         bool isUnderwater() {
             return seaSurface.translation.y >= glm::round(playerCamera.pos.y - 0.03f);
+        }
+
+        bool isUnderwater(glm::vec3 pos) {
+            return seaSurface.translation.y >= glm::round(pos.y - 0.03f);
         }
 
         void drawParticles(renderer::renderer_t particleRender, glm::mat4 proj, float dt, bool animate = true) {
@@ -1668,7 +1723,7 @@ namespace scene {
          * @param parent_mvp 
          * @param renderInfo 
          */
-        void drawTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating, player::playerPOV *cam, bool debug = false) {
+        void drawTerrain(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating, player::playerPOV *cam, bool ignoreFrustum = false) {
 
             for (size_t i = 0; i < listOfBlocksToRender.size(); i++) {
                 float x = listOfBlocksToRender[i]->translation.x;
@@ -1681,7 +1736,7 @@ namespace scene {
                         
                         if (strcmp(renderInfo.type.c_str(), "shadow") == 0) {
                             drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
-                        } else if (frustum::isBlockInView(player::getLookingDirection(cam, 1), glm::vec3(x, y, z), cam->pos)) {
+                        } else if (ignoreFrustum || frustum::isBlockInView(player::getLookingDirection(cam, 1), glm::vec3(x, y, z), cam->pos)) {
                             drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
                         } else if (utility::calculateDistance(glm::vec3(x, y, z), cam->pos) <= 2.0f) {
                             drawBlock(listOfBlocksToRender[i], parent_mvp, renderInfo, onlyIlluminating);
@@ -1770,12 +1825,11 @@ namespace scene {
         ) {
 
             auto oldViewProj = renderInfo.projection * getCurrCamera()->get_view();
-
+            reflectionFrame = (reflectionFrame + 1) % 100;
             for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
-                // renderInfo.setInt("uCubeMap", 3);
-                if (listOfShinyBlocksToRender.at(i)->reflectionTexID == 0) {
+                if (listOfShinyBlocksToRender.at(i)->reflectionTexID == 0 || reflectionFrame == 0) {
+                    texture_2d::destroy(listOfShinyBlocksToRender.at(i)->reflectionTexID);
                     listOfShinyBlocksToRender.at(i)->reflectionTexID = texture_2d::createEmptyCubeMap(REFLECTION_SIZE);
-                    defaultRender.activate();
                     renderToEnvironmentMap(
                         listOfShinyBlocksToRender.at(i)->reflectionTexID,
                         listOfShinyBlocksToRender.at(i)->translation,
@@ -1786,8 +1840,9 @@ namespace scene {
                         oldViewProj,
                         winSize
                     );
-                    renderInfo.activate();
                 }
+                renderInfo.activate();
+
                 // Drawing the reflection
                 auto model = glm::mat4(1.0f);
                 model *= glm::translate(glm::mat4(1.0), listOfShinyBlocksToRender[i]->translation);
@@ -1819,45 +1874,30 @@ namespace scene {
         void renderToEnvironmentMap (
             GLuint cubeMap,
             glm::vec3 centre,
-            renderer::renderer_t renderInfo,
+            renderer::renderer_t basicShader,
             renderer::renderer_t skyboxRender,
             glm::vec2 skyTextures,
             GLfloat blendFactor,
             glm::mat4 usualView,
             glm::vec2 winSize
         ) {
-
-            GLfloat near = 0.1f, far = 200.0f, FOV = 90.0f, aspectRatio = 1.0f;
-            GLfloat yScale = (GLfloat) ((1.0f / glm::tan(glm::radians(FOV / 2.0f))));
-            GLfloat xScale = yScale / aspectRatio;
-            GLfloat frustumLen = far - near;
-
-            // Setting up projection matrix
-            glm::mat4 projectionMatrix = glm::mat4(0.0f);
-            projectionMatrix[0][0] = xScale;
-            projectionMatrix[1][1] = yScale;
-            projectionMatrix[2][2] = -((far + near) / frustumLen);
-            projectionMatrix[2][3] = -1;
-            projectionMatrix[3][2] = -((2 * near * far) / frustumLen);
-            projectionMatrix[3][3] = 0;
-
-            glm::mat4 projViewMatrix;
-
+            std::cout << cubeMap << "\n";
+            glm::mat4 projMatrix = glm::perspective(glm::radians(90.0), 1.0, 0.1, 50.0);
             GLuint fbo, rbo;
             glGenFramebuffers(1, &fbo);
             glBindFramebuffer(GL_FRAMEBUFFER, fbo);
             glDrawBuffer(GL_COLOR_ATTACHMENT0);
-
+            
             glGenRenderbuffers(1, &rbo);
             glBindRenderbuffer(GL_FRAMEBUFFER, rbo);
             // Texture size as REFLECTION_SIZE
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, REFLECTION_SIZE, REFLECTION_SIZE);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, REFLECTION_SIZE, REFLECTION_SIZE);
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
             glViewport(0, 0, REFLECTION_SIZE, REFLECTION_SIZE);
-            cubemapCamera.pos = centre;
-            for (GLenum i = 0; i < 6; i++) {
-                
+            auto cubemapCamera = player::createCamera(glm::vec3(centre.x, centre.y, centre.z), glm::vec3(centre.x, centre.y, centre.z));
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            for (int i = 0; i < 6; i++) {
                 glFramebufferTexture2D(
                     GL_FRAMEBUFFER,
                     GL_COLOR_ATTACHMENT0,
@@ -1865,6 +1905,7 @@ namespace scene {
                     cubeMap,
                     0
                 );
+
                 switch(i) {
                     case 0: // right
                         cubemapCamera.pitch = 0.0f;
@@ -1875,12 +1916,12 @@ namespace scene {
                         cubemapCamera.yaw = -90.0f;
                         break;
                     case 2: //top
-                        cubemapCamera.pitch = -90.0f;
-                        cubemapCamera.yaw = 180.0f;
+                        cubemapCamera.pitch = 90.0f;
+                        cubemapCamera.yaw = 0.0f;
                         break;
                     case 3: //bottom
-                        cubemapCamera.pitch = 90.0f;
-                        cubemapCamera.yaw = 180.0f;
+                        cubemapCamera.pitch = -90.0f;
+                        cubemapCamera.yaw = 0.0f;
                         break;
                     case 4: //front
                         cubemapCamera.pitch = 0.0f;
@@ -1891,15 +1932,16 @@ namespace scene {
                         cubemapCamera.yaw = 0.0f;
                         break;
                 }
-                projViewMatrix = cubemapCamera.get_view() * renderInfo.projection;
+                glm::mat4 projViewMatrix = projMatrix * cubemapCamera.get_view();
+                
+                basicShader.activate();
+
                 glClearColor(1, 1, 1, 1);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                renderInfo.activate();
-                renderInfo.setMat4("uViewProj", projViewMatrix);
-                useCubemapCam = true;
-                drawWorld(renderInfo);
-                drawSkyBox(skyboxRender, renderInfo.projection, skyTextures.x, skyTextures.y, blendFactor);
-                useCubemapCam = false;
+                // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                basicShader.setMat4("uViewProj", projViewMatrix);
+                
+                drawTerrain(glm::mat4(1.0f), basicShader, false, &cubemapCamera, true);
+                // drawSkyBox(skyboxRender, basicShader.projection, skyTextures.x, skyTextures.y, blendFactor);
             }
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             // glUniformMatrix4fv(renderInfo.view_proj_loc, 1, GL_FALSE, glm::value_ptr(usualView));
@@ -1926,6 +1968,33 @@ namespace scene {
             glBindVertexArray(0);
             glDepthFunc(GL_LESS);
             return;
+        }
+
+        void spawnBlockParticles() {
+            for (auto block : listOfBlocksToRender) {
+                if (strcmp(block->name.c_str(), "magma") == 0) {
+                    if (rand() % 15 == 0) {
+                        auto pos = block->translation;
+                        if (isUnderwater(pos)) {
+                            particle::spawnFloatingParticles(&listOfParticles, pos, bubble, seaSurface.translation.y);
+                        } else {
+                            particle::spawnSlowFloatingParticles(&listOfParticles, pos, smokeParticles[rand() % TOTAL_SMOKE], findClosestBlockAboveBelow(1, glm::vec3(pos.x, pos.y + 1, pos.z)) - 0.5f);
+                        }
+                    }
+                } else if (strcmp(block->name.c_str(), "crying_obsidian") == 0) {
+                    auto pos = block->translation;
+                    if (!isUnderwater(pos) && rand() % 30 == 0) {
+                        particle::spawnDripParticles(&listOfParticles, pos, tear, findClosestBlockAboveBelow(-1, glm::vec3(pos.x, pos.y - 1, pos.z)) - 0.5f);
+                    }
+                } else if (strcmp(block->name.c_str(), "coral") == 0) {
+                    auto pos = block->translation;
+                    if (isUnderwater(pos)) {
+                        if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
+                        if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
+                        if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
+                    }
+                }
+            }
         }
 
 
@@ -2040,7 +2109,6 @@ namespace scene {
             screen.rotation.y = -playerCamera.yaw;
 
             drawElement(&screen, parent_mvp, renderInfo);
-            
         }
 
         /**
@@ -2076,6 +2144,7 @@ namespace scene {
             destroy(&centreOfWorld, true);
             destroy(&screen, true);
             destroy(&highlightedBlock, true);
+            texture_2d::destroy(bubble);
 
             for (auto i : moonPhases) {
                 texture_2d::destroy(i);

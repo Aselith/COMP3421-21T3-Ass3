@@ -33,6 +33,31 @@ namespace utility {
 		float diff = max - min;
 		return min + (random * diff);
 	}
+
+	glm::vec3 genRandomPointOnCube(float width) {
+		glm::vec3 returnPoint;
+		switch (rand() % 6) {
+			case 0:
+				returnPoint = {genRandFloat(-width, width), width, genRandFloat(-width, width)};
+				break;
+			case 1:
+				returnPoint = {genRandFloat(-width, width), -width, genRandFloat(-width, width)};
+				break;
+			case 2:
+				returnPoint = {width, genRandFloat(-width, width), genRandFloat(-width, width)};
+				break;
+			case 3:
+				returnPoint = {-width, genRandFloat(-width, width), genRandFloat(-width, width)};
+				break;
+			case 4:
+				returnPoint = {genRandFloat(-width, width), genRandFloat(-width, width), width};
+				break;
+			case 5:
+				returnPoint = {genRandFloat(-width, width), genRandFloat(-width, width), -width};
+				break;
+		}
+		return returnPoint;
+	}
 	
 	bool isInRange(float value, float min, float max) {
 		return value >= min && value < max;

@@ -23,6 +23,8 @@ namespace utility {
 
     float genRandFloat(float min, float max);
 
+    glm::vec3 genRandomPointOnCube(float width);
+
     /**
      * @brief Returns the difference in time between when this function was previously called and this call.
      * @return A float representing the difference between function calls in seconds.

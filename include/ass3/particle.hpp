@@ -17,6 +17,7 @@ namespace particle {
         std::string name;
         GLfloat yVelocity, zVelocity, xVelocity;
         GLfloat minimumYvalue;
+        GLfloat maximumYvalue;
         bool affectedByGravity = true;
         GLuint bounceCount = 0.0f;
         GLfloat lifeTimer = 0.0f;
@@ -25,6 +26,14 @@ namespace particle {
     void spawnBlockBreakParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID);
 
     void spawnImpactParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, int totalParticles = 18);
+
+    void spawnFloatingParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float maxHeight = 999.0f, int totalParticles = -1);
+
+    void spawnSlowFloatingParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float maxHeight = 999.0f);
+
+    void spawnDripParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float minHeight = -999.0f);
+
+    void spawnParticleAround(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float maxHeight = 999.0f);
 
     void drawAllParticles(std::vector<particle_t *> *list, renderer::renderer_t defaultRender, glm::mat4 view, glm::mat4 proj, GLfloat gravity, GLfloat dt, bool animate = true);
 

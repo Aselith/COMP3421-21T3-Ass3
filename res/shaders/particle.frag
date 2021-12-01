@@ -17,6 +17,10 @@ uniform DirLight uSun;
 
 
 void main() {
+    vec4 test = texture(uTex, vTexCoord);
+    if (test.a == 0) {
+        discard;
+    }
     if (forceBlack) {
         FragColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
     } else {

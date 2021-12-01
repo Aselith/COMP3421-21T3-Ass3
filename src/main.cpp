@@ -177,6 +177,7 @@ int main() {
     }
 
     // Creating different shaders
+
     renderer::renderer_t shadowShader;
     shadowShader.createProgram("shadow");
     shadowShader.setUpShadow();
@@ -383,13 +384,15 @@ int main() {
     gameWorld.playerCamera = player::createCamera(glm::vec3(xPos, 5, zPos), glm::vec3(xPos, -10.0f, zPos));
     gameWorld.cutsceneCamera = player::createCamera(glm::vec3(xPos, 5, zPos), glm::vec3(xPos, -10.0f, zPos));
     gameWorld.reflectionCamera = player::createCamera(glm::vec3(xPos, 5, zPos), glm::vec3(xPos, -10.0f, zPos));
-    gameWorld.cubemapCamera = player::createCamera(glm::vec3(xPos, 5, zPos), glm::vec3(xPos, -10.0f, zPos));
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_ALPHA_TEST);
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glEnable(GL_CLIP_DISTANCE0);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glAlphaFunc(GL_LEQUAL, 0);
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
@@ -504,6 +507,8 @@ int main() {
     lightProjection = glm::ortho(-worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, -worldSize / 2 - 5.0f, worldSize / 2 + 5.0f, nearPlane, farPlane);
 
     std::vector<GLuint> framebufferList = {waterReflectionFBO, waterRefractionFBO, untamperedFBO};
+
+
     // RENDER LOOP
     while (!glfwWindowShouldClose(window)) {
         int width, height;
@@ -511,6 +516,7 @@ int main() {
 
         float dt = utility::time_delta();
 
+        gameWorld.spawnBlockParticles();
 
         // Calculating frames per second
         totalTime += dt;
@@ -551,7 +557,6 @@ int main() {
     
         // Rendering the scene with an ortho camera
         shadowShader.activate();
-        
 
         // Calculating light view
         lightView = glm::lookAt(sunPosition, {playerPosPtr->x, playerPosPtr->y, playerPosPtr->z}, glm::vec3(0.0, 1.0, 0.0));
