@@ -12,8 +12,9 @@ namespace particle {
     struct particle_t {
         static_mesh::mesh_t mesh;
         GLuint textureID = 0;
-        glm::vec3 translation = glm::vec3(0.0);
-        glm::vec3 scale = glm::vec3(1.0);
+        glm::vec3 translation = glm::vec3(0.0f);
+        glm::vec3 scale = glm::vec3(1.0f);
+        glm::vec3 color = glm::vec3(0.0f);
         std::string name;
         GLfloat yVelocity, zVelocity, xVelocity;
         GLfloat minimumYvalue;
@@ -21,6 +22,7 @@ namespace particle {
         bool affectedByGravity = true, affectedByLight = true;
         GLuint bounceCount = 0.0f;
         GLfloat lifeTimer = 0.0f;
+        
     };
 
     void spawnBlockBreakParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID);
@@ -32,6 +34,8 @@ namespace particle {
     void spawnSlowFloatingParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float maxHeight = 999.0f);
 
     void spawnDripParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float minHeight = -999.0f);
+
+    void spawnBlockAmbientParticle(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, glm::vec3 color);
 
     void spawnParticleAround(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float maxHeight = 999.0f);
 

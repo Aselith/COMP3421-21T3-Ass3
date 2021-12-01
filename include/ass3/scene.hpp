@@ -33,8 +33,9 @@ namespace scene {
     const float ZFIGHT_OFFSET         = 0.01f;
 
     const int   TOTAL_SMOKE           = 12;
-    const int   TOTAL_FISH            = 10;
+    const int   TOTAL_FISH            = 12;
     const int   TOTAL_FIREFLY         = 2;
+    const int   TOTAL_DUST            = 4;
 
     struct node_t {
         static_mesh::mesh_t mesh;
@@ -414,18 +415,18 @@ namespace scene {
         GLuint bubble = texture_2d::init("./res/textures/particles/bubble.png");
         GLuint tear = texture_2d::init("./res/textures/particles/obsidian_tear.png");
         GLuint smokeParticles[TOTAL_SMOKE] = {
-            texture_2d::init("./res/textures/particles/big_smoke_0.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_1.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_2.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_3.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_4.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_5.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_6.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_7.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_8.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_9.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_10.png"),
-            texture_2d::init("./res/textures/particles/big_smoke_11.png")
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_0.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_1.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_2.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_3.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_4.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_5.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_6.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_7.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_8.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_9.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_10.png"),
+            texture_2d::init("./res/textures/particles/smoke/big_smoke_11.png")
         };
         GLuint fish[TOTAL_FISH] = {
             texture_2d::init("./res/textures/particles/fish/salmonA.png"),
@@ -438,10 +439,18 @@ namespace scene {
             texture_2d::init("./res/textures/particles/fish/orangeTropicalFishB.png"),
             texture_2d::init("./res/textures/particles/fish/blueTropicalFishA.png"),
             texture_2d::init("./res/textures/particles/fish/blueTropicalFishB.png"),
+            texture_2d::init("./res/textures/particles/fish/whiteTropicalFishA.png"),
+            texture_2d::init("./res/textures/particles/fish/whiteTropicalFishB.png")
         };
         GLuint firefly[TOTAL_FIREFLY] = {
             texture_2d::init("./res/textures/particles/fireflyA.png"),
             texture_2d::init("./res/textures/particles/fireflyB.png")
+        };
+        GLuint dust[TOTAL_DUST] = {
+            texture_2d::init("./res/textures/particles/dust/dust_0.png"),
+            texture_2d::init("./res/textures/particles/dust/dust_1.png"),
+            texture_2d::init("./res/textures/particles/dust/dust_2.png"),
+            texture_2d::init("./res/textures/particles/dust/dust_3.png")
         };
         
         std::vector<blockData> hotbar;
@@ -2017,6 +2026,10 @@ namespace scene {
                 } else if (strcmp(block->name.c_str(), "crying_obsidian") == 0) {
                     if (!isUnderwater(pos) && rand() % 30 == 0) {
                         particle::spawnDripParticles(&listOfParticles, pos, tear, findClosestBlockAboveBelow(-1, glm::vec3(pos.x, pos.y - 1, pos.z)) - 0.5f);
+                    }
+                } else if (strcmp(block->name.c_str(), "redstone_ore") == 0) {
+                    if (rand() % 30 == 0) {
+                        particle::spawnBlockAmbientParticle(&listOfParticles, pos, dust[rand() % TOTAL_DUST], glm::vec3(255.0f, 0.0f, 0.0f) / 255.0f);
                     }
                 } else if (strcmp(block->name.c_str(), "coral") == 0) {
                     if (isUnderwater(pos)) {

@@ -18,6 +18,7 @@ namespace particle {
 			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 			newParticle->mesh = shapes::createParticle(true);
+			newParticle->color = glm::vec3(-1.0f, -1.0f, -1.0f);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = true;
 			newParticle->affectedByLight = true;
@@ -52,6 +53,7 @@ namespace particle {
 			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 			newParticle->mesh = shapes::createParticle(false);
+			newParticle->color = glm::vec3(-1.0f, -1.0f, -1.0f);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = false;
 			newParticle->affectedByLight = true;
@@ -83,6 +85,7 @@ namespace particle {
 		particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 		newParticle->mesh = shapes::createParticle(false);
+		newParticle->color = glm::vec3(-1.0f, -1.0f, -1.0f);
 		newParticle->textureID = texID;
 		newParticle->affectedByGravity = false;
 		newParticle->affectedByLight = true;
@@ -117,6 +120,7 @@ namespace particle {
 			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 			newParticle->mesh = shapes::createParticle(true);
+			newParticle->color = glm::vec3(-1.0f, -1.0f, -1.0f);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = true;
 			newParticle->affectedByLight = true;
@@ -141,6 +145,40 @@ namespace particle {
 		return;
 	}
 
+	void spawnBlockAmbientParticle(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, glm::vec3 color) {
+		// Error checking. Don't spawn any particles if texture is invalid
+		if (texID == 0) return;
+
+		int totalParticles = (rand() % 3) + 1;
+		for (int i = 0; i < totalParticles; i++) {
+			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
+
+			newParticle->mesh = shapes::createParticle(false);
+			newParticle->color = color;
+			newParticle->textureID = texID;
+			newParticle->affectedByGravity = false;
+			newParticle->affectedByLight = false;
+			newParticle->lifeTimer = utility::genRandFloat(3.5f, 25.0f);
+			newParticle->translation.x = position.x;
+			newParticle->translation.y = position.y;
+			newParticle->translation.z = position.z;
+			newParticle->translation += utility::genRandomPointOnCube(0.51f);
+			newParticle->minimumYvalue = -999.0f;
+			newParticle->maximumYvalue = 999.0f;
+			newParticle->bounceCount = 0;
+
+			newParticle->yVelocity = 0.0f;
+			newParticle->xVelocity = 0.0f;
+			newParticle->zVelocity = 0.0f;
+
+			newParticle->scale = glm::vec3(0.1875f, 0.1875f, 0.1875f);
+			
+			list->push_back(newParticle);
+		}
+
+		return;
+	}
+
 	void spawnParticleAround(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float maxHeight) {
 		// Error checking. Don't spawn any particles if texture is invalid
 		if (texID == 0) return;
@@ -148,6 +186,7 @@ namespace particle {
 		particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 		newParticle->mesh = shapes::createParticle(false);
+		newParticle->color = glm::vec3(-1.0f, -1.0f, -1.0f);
 		newParticle->textureID = texID;
 		newParticle->affectedByGravity = false;
 		newParticle->affectedByLight = true;
@@ -180,6 +219,7 @@ namespace particle {
 			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 			newParticle->mesh = shapes::createParticle(false);
+			newParticle->color = glm::vec3(-1.0f, -1.0f, -1.0f);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = false;
 			newParticle->affectedByLight = false;
@@ -213,6 +253,7 @@ namespace particle {
 			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 			newParticle->mesh = shapes::createParticle(true);
+			newParticle->color = glm::vec3(-1.0f, -1.0f, -1.0f);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = true;
 			newParticle->affectedByLight = true;
@@ -268,6 +309,7 @@ namespace particle {
 
 			particleRender.setMat4("uViewModel", viewModel);
 			particleRender.setMat4("uModel", model);
+			particleRender.setVec3("uColor", particlePointer->color);
 			particleRender.setInt("affectedByLight", particlePointer->affectedByLight);
 
 			if (particlePointer->mesh.vbo) {

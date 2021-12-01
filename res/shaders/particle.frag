@@ -12,6 +12,7 @@ struct DirLight {
 };
 
 uniform sampler2D uTex;
+uniform vec3 uColor;
 uniform bool forceBlack;
 uniform bool affectedByLight;
 uniform DirLight uSun;
@@ -20,8 +21,10 @@ uniform DirLight uSun;
 void main() {
     vec4 test = texture(uTex, vTexCoord);
     if (test.a == 0) {
+        // Forget about fragment if the alpha is 0
         discard;
     }
+
     if (forceBlack) {
         FragColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
     } else {
@@ -32,6 +35,9 @@ void main() {
             FragColor = mix(baseColor, vec4(lightColor.rgb, baseColor.a), lightNormal * 0.8f);
         } else {
             FragColor = baseColor;
+        }
+        if (uColor.r >= 0 || uColor.g >= 0 || uColor.b >= 0) {
+            FragColor = mix(FragColor, vec4(uColor, 1.0f), 1.0f);
         }
     }
 }
