@@ -20,6 +20,7 @@ namespace particle {
 			newParticle->mesh = shapes::createParticle(true);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = true;
+			newParticle->affectedByLight = true;
 			newParticle->lifeTimer = utility::genRandFloat(0.5f, 1.5f);
 			newParticle->translation = position;
 			newParticle->minimumYvalue = -999.0f;
@@ -53,6 +54,7 @@ namespace particle {
 			newParticle->mesh = shapes::createParticle(false);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = false;
+			newParticle->affectedByLight = true;
 			newParticle->lifeTimer = utility::genRandFloat(5.0f, 12.0f);
 			newParticle->translation = position;
 			newParticle->minimumYvalue = -999.0f;
@@ -83,6 +85,7 @@ namespace particle {
 		newParticle->mesh = shapes::createParticle(false);
 		newParticle->textureID = texID;
 		newParticle->affectedByGravity = false;
+		newParticle->affectedByLight = true;
 		newParticle->lifeTimer = utility::genRandFloat(20.0f, 30.0f);
 		newParticle->translation = position;
 		newParticle->minimumYvalue = -999.0f;
@@ -116,6 +119,7 @@ namespace particle {
 			newParticle->mesh = shapes::createParticle(true);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = true;
+			newParticle->affectedByLight = true;
 			newParticle->lifeTimer = utility::genRandFloat(3.5f, 25.0f);
 			newParticle->translation.x = position.x;
 			newParticle->translation.y = position.y;
@@ -141,12 +145,12 @@ namespace particle {
 		// Error checking. Don't spawn any particles if texture is invalid
 		if (texID == 0) return;
 
-
 		particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
 
 		newParticle->mesh = shapes::createParticle(false);
 		newParticle->textureID = texID;
 		newParticle->affectedByGravity = false;
+		newParticle->affectedByLight = true;
 		newParticle->lifeTimer = utility::genRandFloat(1.5f, 25.0f);
 		newParticle->translation.x = position.x + utility::genRandFloat(-3.0f, 3.0f);
 		newParticle->translation.y = position.y + utility::genRandFloat(-3.0f, 3.0f);
@@ -167,6 +171,40 @@ namespace particle {
 		return;
 	}
 
+	void spawnAmbientParticle(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, float minHeight) {
+		// Error checking. Don't spawn any particles if texture is invalid
+		if (texID == 0) return;
+
+		int totalParticles = (rand() % 2) + 1;
+		for (int i = 0; i < totalParticles; i++) {
+			particle_t* newParticle = (struct particle_t*) malloc(sizeof(struct particle_t));
+
+			newParticle->mesh = shapes::createParticle(false);
+			newParticle->textureID = texID;
+			newParticle->affectedByGravity = false;
+			newParticle->affectedByLight = false;
+			newParticle->lifeTimer = utility::genRandFloat(10.0f, 120.0f);
+			newParticle->translation.x = position.x + utility::genRandFloat(-3.0f, 3.0f);
+			newParticle->translation.y = position.y + utility::genRandFloat( 0.0f, 5.0f);
+			newParticle->translation.z = position.z + utility::genRandFloat(-3.0f, 3.0f);
+
+			newParticle->minimumYvalue = minHeight;
+			newParticle->maximumYvalue = 9999;
+			newParticle->bounceCount = 0;
+
+			newParticle->yVelocity = utility::genRandFloat(-0.02f, 0.02f);
+			newParticle->xVelocity = utility::genRandFloat(-0.2f, 0.2f);
+			newParticle->zVelocity = utility::genRandFloat(-0.2f, 0.2f);
+
+			newParticle->scale = glm::vec3(0.5f, 0.5f, 0.5f);
+			
+			list->push_back(newParticle);
+		}
+
+		return;
+	}
+
+
 	void spawnImpactParticles(std::vector<particle_t *> *list, glm::vec3 position, GLuint texID, int totalParticles) {
 		// Error checking. Don't spawn any particles if texture is invalid
 		if (texID == 0) return;
@@ -177,6 +215,8 @@ namespace particle {
 			newParticle->mesh = shapes::createParticle(true);
 			newParticle->textureID = texID;
 			newParticle->affectedByGravity = true;
+			newParticle->affectedByLight = true;
+
 			newParticle->lifeTimer = utility::genRandFloat(3.5f, 25.0f);
 			newParticle->translation.x = position.x;
 			newParticle->translation.y = position.y;
@@ -228,6 +268,7 @@ namespace particle {
 
 			particleRender.setMat4("uViewModel", viewModel);
 			particleRender.setMat4("uModel", model);
+			particleRender.setInt("affectedByLight", particlePointer->affectedByLight);
 
 			if (particlePointer->mesh.vbo) {
 				glActiveTexture(GL_TEXTURE0);

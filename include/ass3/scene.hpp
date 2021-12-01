@@ -28,12 +28,13 @@ namespace scene {
     const float CAMERA_SPEED          = 5.0f;
     const float PLAYER_RADIUS         = 0.25f; // 0.25
     const float SCREEN_DISTANCE       = 0.25f;
-    const int   REFLECTION_SIZE       = 128;
+    const int   REFLECTION_SIZE       = 256;
     const int   VOID_LEVEL            = -5;
     const float ZFIGHT_OFFSET         = 0.01f;
 
     const int   TOTAL_SMOKE           = 12;
-    const int   TOTAL_FISH            = 4;
+    const int   TOTAL_FISH            = 10;
+    const int   TOTAL_FIREFLY         = 2;
 
     struct node_t {
         static_mesh::mesh_t mesh;
@@ -428,9 +429,19 @@ namespace scene {
         };
         GLuint fish[TOTAL_FISH] = {
             texture_2d::init("./res/textures/particles/fish/salmonA.png"),
-            texture_2d::init("./res/textures/particles/fish/codA.png"),
             texture_2d::init("./res/textures/particles/fish/salmonB.png"),
-            texture_2d::init("./res/textures/particles/fish/codB.png")
+            texture_2d::init("./res/textures/particles/fish/codA.png"),
+            texture_2d::init("./res/textures/particles/fish/codB.png"),
+            texture_2d::init("./res/textures/particles/fish/redTropicalFishA.png"),
+            texture_2d::init("./res/textures/particles/fish/redTropicalFishB.png"),
+            texture_2d::init("./res/textures/particles/fish/orangeTropicalFishA.png"),
+            texture_2d::init("./res/textures/particles/fish/orangeTropicalFishB.png"),
+            texture_2d::init("./res/textures/particles/fish/blueTropicalFishA.png"),
+            texture_2d::init("./res/textures/particles/fish/blueTropicalFishB.png"),
+        };
+        GLuint firefly[TOTAL_FIREFLY] = {
+            texture_2d::init("./res/textures/particles/fireflyA.png"),
+            texture_2d::init("./res/textures/particles/fireflyB.png")
         };
         
         std::vector<blockData> hotbar;
@@ -568,7 +579,7 @@ namespace scene {
             hotbar.push_back(combineBlockData("slime_block", false, false, true));
             hotbar.push_back(combineBlockData("marccoin_block", false, false, true));
             hotbar.push_back(combineBlockData("bedrock", false, false));
-            hotbar.push_back(combineBlockData("wip", false, false));
+            hotbar.push_back(combineBlockData("wip", false, false, false));
             hotbar.push_back(combineBlockData("coral_brain", false, false));
             hotbar.push_back(combineBlockData("coral_bubble", false, false));
             hotbar.push_back(combineBlockData("coral_fire", false, false));
@@ -1813,7 +1824,7 @@ namespace scene {
             }
         }
 
-        void drawShinyTerrain(
+        void updateShinyTerrain(
             const glm::mat4 &viewProj, 
             renderer::renderer_t renderInfo,
             renderer::renderer_t defaultRender,
@@ -1821,9 +1832,9 @@ namespace scene {
             glm::vec2 skyTextures,
             GLfloat blendFactor,
             glm::vec2 winSize,
+            GLuint currFBO,
             GLuint forceMap = 0
         ) {
-
             auto oldViewProj = renderInfo.projection * getCurrCamera()->get_view();
             reflectionFrame = (reflectionFrame + 1) % 100;
             for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
@@ -1841,6 +1852,24 @@ namespace scene {
                         winSize
                     );
                 }
+            }
+        }
+
+        void drawShinyTerrain(
+            const glm::mat4 &viewProj, 
+            renderer::renderer_t renderInfo,
+            renderer::renderer_t defaultRender,
+            renderer::renderer_t skyBoxRender,
+            glm::vec2 skyTextures,
+            GLfloat blendFactor,
+            glm::vec2 winSize,
+            GLuint currFBO,
+            GLuint forceMap = 0
+        ) {
+
+        
+            for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
+                
                 renderInfo.activate();
 
                 // Drawing the reflection
@@ -1886,17 +1915,18 @@ namespace scene {
             GLuint fbo, rbo;
             glGenFramebuffers(1, &fbo);
             glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, cubeMap, 0);
             
             glGenRenderbuffers(1, &rbo);
             glBindRenderbuffer(GL_FRAMEBUFFER, rbo);
             // Texture size as REFLECTION_SIZE
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, REFLECTION_SIZE, REFLECTION_SIZE);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, REFLECTION_SIZE, REFLECTION_SIZE);
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
             glViewport(0, 0, REFLECTION_SIZE, REFLECTION_SIZE);
             auto cubemapCamera = player::createCamera(glm::vec3(centre.x, centre.y, centre.z), glm::vec3(centre.x, centre.y, centre.z));
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
             for (int i = 0; i < 6; i++) {
                 glFramebufferTexture2D(
                     GL_FRAMEBUFFER,
@@ -1905,46 +1935,49 @@ namespace scene {
                     cubeMap,
                     0
                 );
-
+                cubemapCamera.roll = 0;
                 switch(i) {
-                    case 0: // right
+                    case 0: // posX
                         cubemapCamera.pitch = 0.0f;
                         cubemapCamera.yaw = 90.0f;
+                        cubemapCamera.roll = 180.0f;
                         break;
-                    case 1: //left
+                    case 1: // negX
                         cubemapCamera.pitch = 0.0f;
-                        cubemapCamera.yaw = -90.0f;
+                        cubemapCamera.yaw = 270.0f;
+                        cubemapCamera.roll = 180.0f;
                         break;
-                    case 2: //top
+                    case 2: // posY
                         cubemapCamera.pitch = 90.0f;
                         cubemapCamera.yaw = 0.0f;
                         break;
-                    case 3: //bottom
+                    case 3: // negY
                         cubemapCamera.pitch = -90.0f;
                         cubemapCamera.yaw = 0.0f;
                         break;
-                    case 4: //front
+                    case 4: // posZ
                         cubemapCamera.pitch = 0.0f;
                         cubemapCamera.yaw = 180.0f;
+                        cubemapCamera.roll = 180.0f;
                         break;
-                    case 5: //back
+                    case 5: // negZ
                         cubemapCamera.pitch = 0.0f;
                         cubemapCamera.yaw = 0.0f;
+                        cubemapCamera.roll = 180.0f;
                         break;
                 }
                 glm::mat4 projViewMatrix = projMatrix * cubemapCamera.get_view();
                 
                 basicShader.activate();
 
-                glClearColor(1, 1, 1, 1);
-                // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                glClearColor(basicShader.sun_light_color.r, basicShader.sun_light_color.g, basicShader.sun_light_color.b, 1);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
                 basicShader.setMat4("uViewProj", projViewMatrix);
                 
                 drawTerrain(glm::mat4(1.0f), basicShader, false, &cubemapCamera, true);
-                // drawSkyBox(skyboxRender, basicShader.projection, skyTextures.x, skyTextures.y, blendFactor);
             }
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            // glUniformMatrix4fv(renderInfo.view_proj_loc, 1, GL_FALSE, glm::value_ptr(usualView));
+            glUniformMatrix4fv(basicShader.view_proj_loc, 1, GL_FALSE, glm::value_ptr(usualView));
             glViewport(0, 0, winSize.x, winSize.y);
             //chicken3421::delete_framebuffer(fbo);
             //chicken3421::delete_framebuffer(rbo);
@@ -1972,9 +2005,9 @@ namespace scene {
 
         void spawnBlockParticles() {
             for (auto block : listOfBlocksToRender) {
+                auto pos = block->translation;
                 if (strcmp(block->name.c_str(), "magma") == 0) {
                     if (rand() % 15 == 0) {
-                        auto pos = block->translation;
                         if (isUnderwater(pos)) {
                             particle::spawnFloatingParticles(&listOfParticles, pos, bubble, seaSurface.translation.y);
                         } else {
@@ -1982,17 +2015,17 @@ namespace scene {
                         }
                     }
                 } else if (strcmp(block->name.c_str(), "crying_obsidian") == 0) {
-                    auto pos = block->translation;
                     if (!isUnderwater(pos) && rand() % 30 == 0) {
                         particle::spawnDripParticles(&listOfParticles, pos, tear, findClosestBlockAboveBelow(-1, glm::vec3(pos.x, pos.y - 1, pos.z)) - 0.5f);
                     }
                 } else if (strcmp(block->name.c_str(), "coral") == 0) {
-                    auto pos = block->translation;
                     if (isUnderwater(pos)) {
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
                     }
+                } else if (utility::isInRange(worldTime, 0.65f, 0.9f) && rand() % 1000 == 0 && rand() % 35 == 0 && !isUnderwater(pos)) {
+                    particle::spawnAmbientParticle(&listOfParticles, pos, firefly[rand() % TOTAL_FIREFLY], seaSurface.translation.y);
                 }
             }
         }
@@ -2076,22 +2109,22 @@ namespace scene {
          * @param glassIncluded 
          */
         void getHiddenFaces(int x, int y, int z, std::vector<bool> &faces, bool glassIncluded) {
-            if (!isCoordOutBoundaries(x, y - 1, z) && !(terrain.at(x).at(y - 1).at(z).air || glassIncluded * terrain.at(x).at(y - 1).at(z).transparent)) {
+            if (!isCoordOutBoundaries(x, y - 1, z) && !(terrain.at(x).at(y - 1).at(z).air || strcmp(terrain.at(x).at(y - 1).at(z).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x).at(y - 1).at(z).transparent)) {
                 faces[0] = false; // 0 bottom
             }
-            if (!isCoordOutBoundaries(x, y + 1, z) && !(terrain.at(x).at(y + 1).at(z).air || glassIncluded * terrain.at(x).at(y + 1).at(z).transparent)) {
+            if (!isCoordOutBoundaries(x, y + 1, z) && !(terrain.at(x).at(y + 1).at(z).air || strcmp(terrain.at(x).at(y + 1).at(z).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x).at(y + 1).at(z).transparent)) {
                 faces[1] = false; // 1 Is top
             }
-            if (!isCoordOutBoundaries(x, y, z + 1) && !(terrain.at(x).at(y).at(z + 1).air || glassIncluded * terrain.at(x).at(y).at(z + 1).transparent)) {
+            if (!isCoordOutBoundaries(x, y, z + 1) && !(terrain.at(x).at(y).at(z + 1).air || strcmp(terrain.at(x).at(y).at(z + 1).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x).at(y).at(z + 1).transparent)) {
                 faces[2] = false;
             }
-            if (!isCoordOutBoundaries(x, y, z - 1) && !(terrain.at(x).at(y).at(z - 1).air || glassIncluded * terrain.at(x).at(y).at(z - 1).transparent)) {
+            if (!isCoordOutBoundaries(x, y, z - 1) && !(terrain.at(x).at(y).at(z - 1).air || strcmp(terrain.at(x).at(y).at(z - 1).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x).at(y).at(z - 1).transparent)) {
                 faces[3] = false;
             }
-            if (!isCoordOutBoundaries(x + 1, y, z) && !(terrain.at(x + 1).at(y).at(z).air || glassIncluded * terrain.at(x + 1).at(y).at(z).transparent)) {
+            if (!isCoordOutBoundaries(x + 1, y, z) && !(terrain.at(x + 1).at(y).at(z).air || strcmp(terrain.at(x + 1).at(y).at(z).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x + 1).at(y).at(z).transparent)) {
                 faces[4] = false;
             }
-            if (!isCoordOutBoundaries(x - 1, y, z) && !(terrain.at(x - 1).at(y).at(z).air || glassIncluded * terrain.at(x - 1).at(y).at(z).transparent)) {
+            if (!isCoordOutBoundaries(x - 1, y, z) && !(terrain.at(x - 1).at(y).at(z).air || strcmp(terrain.at(x - 1).at(y).at(z).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x - 1).at(y).at(z).transparent)) {
                 faces[5] = false;
             }
         }

@@ -12,6 +12,7 @@ namespace player {
         glm::vec3 pos;
         float yaw;
         float pitch;
+        float roll;
         float yVelocity;
 
         /**
@@ -23,8 +24,9 @@ namespace player {
             // calculate the rotated coordinate frame
             glm::mat4 yawed = glm::rotate(glm::mat4(1.0), -glm::radians(yaw), glm::vec3(0, 1, 0));
             glm::mat4 pitched = glm::rotate(glm::mat4(1.0), glm::radians(pitch), glm::vec3(1, 0, 0));
+            glm::mat4 rolled = glm::rotate(glm::mat4(1.0), glm::radians(roll), glm::vec3(0, 0, 1));
             // transpose for inverted transformation
-            glm::mat4 view = glm::transpose(yawed * pitched);
+            glm::mat4 view = glm::transpose(yawed * pitched * rolled);
             view *= glm::translate(glm::mat4(1.0), -pos);
             return view;
         }

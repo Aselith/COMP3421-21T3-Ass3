@@ -12,7 +12,7 @@ namespace player {
         // calculate the yaw and pitch from the front vector
         float yaw = glm::degrees(std::atan2(front.x, -front.z));
         float pitch = glm::degrees(std::asin(front.y));
-        return {pos, yaw, pitch, 0};
+        return {pos, yaw, pitch, 0, 0};
     }
 
     void updateCameraAngle(playerPOV &cam, GLFWwindow *win, float dt) {

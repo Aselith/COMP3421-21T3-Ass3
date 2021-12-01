@@ -581,6 +581,19 @@ int main() {
         glUniformMatrix4fv(defaultShader.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
         glUniformMatrix4fv(defaultShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
+        if (info.enableExperimental > 0) {
+            gameWorld.updateShinyTerrain(
+                view_proj,
+                cubeReflectShader,
+                defaultShader,
+                skyboxShader,
+                {dayNightCalculator.prevTex, dayNightCalculator.currTex},
+                blendValue,
+                {WIN_WIDTH, WIN_HEIGHT},
+                (info.enableExperimental == 1) ? dayNightCalculator.practice : 0
+            );
+        }
+
         // Drawing world via reflection, refraction and then via untampered
         
         for (auto currFBO : framebufferList) {
@@ -621,6 +634,7 @@ int main() {
                 glBindTexture(GL_TEXTURE_2D, depthMapTexID);
                 gameWorld.drawWorld(defaultShader, false, currFBO == untamperedFBO);
 
+                
                 if (info.enableExperimental > 0 && currFBO == untamperedFBO) {
                     cubeReflectShader.activate();
                     gameWorld.drawShinyTerrain(
