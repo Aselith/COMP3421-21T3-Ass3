@@ -841,6 +841,8 @@ int main() {
         if (firstPass) {
             glActiveTexture(GL_TEXTURE10);
             glBindTexture(GL_TEXTURE_2D, finalFrameTexID);
+            glActiveTexture(GL_TEXTURE11);
+            glBindTexture(GL_TEXTURE_2D, finalFrameTexID);
         } else {
             glActiveTexture(GL_TEXTURE10);
             glBindTexture(GL_TEXTURE_2D, temporalFrameATexID);

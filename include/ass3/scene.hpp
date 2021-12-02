@@ -28,9 +28,9 @@ namespace scene {
     const float CAMERA_SPEED          = 5.0f;
     const float PLAYER_RADIUS         = 0.25f; // 0.25
     const float SCREEN_DISTANCE       = 0.25f;
-    const int   REFLECTION_SIZE       = 512;
+    const int   REFLECTION_SIZE       = 256;
     const int   VOID_LEVEL            = -5;
-    const float ZFIGHT_OFFSET         = 0.01f;
+    const float ZFIGHT_OFFSET         = 0.02f;
 
     const int   TOTAL_SMOKE           = 12;
     const int   TOTAL_FISH            = 14;
@@ -1858,11 +1858,7 @@ namespace scene {
             }
         }
 
-        void drawShinyTerrain(
-            const glm::mat4 &viewProj, 
-            renderer::renderer_t renderInfo,
-            GLuint forceMap = 0
-        ) {
+        void drawShinyTerrain(const glm::mat4 &viewProj, renderer::renderer_t renderInfo, GLuint forceMap = 0) {
             for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
                 
                 renderInfo.activate();
