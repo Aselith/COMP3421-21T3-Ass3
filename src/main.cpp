@@ -68,7 +68,7 @@ struct dayNightTextureSystem {
         if (utility::isInRange(dayProgress, 0.0f, 0.2f)) {
             prevTex = sunrise;
             currTex = day;
-            skyColor = glm::mix(sunriseRGB, dayRGB, dayProgress / 0.2);
+            skyColor = glm::mix(sunriseRGB, dayRGB, dayProgress / 0.2f);
             return dayProgress / 0.2f;
         } else if (utility::isInRange(dayProgress, 0.2f, 0.3f)) {
             prevTex = day;
