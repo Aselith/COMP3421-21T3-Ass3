@@ -68,7 +68,7 @@ struct dayNightTextureSystem {
         if (utility::isInRange(dayProgress, 0.0f, 0.2f)) {
             prevTex = sunrise;
             currTex = day;
-            skyColor = sunriseRGB + abs(dayRGB - sunriseRGB) * (dayProgress / 0.2f);
+            skyColor = glm::mix(sunriseRGB, dayRGB, dayProgress / 0.2);
             return dayProgress / 0.2f;
         } else if (utility::isInRange(dayProgress, 0.2f, 0.3f)) {
             prevTex = day;
@@ -78,12 +78,12 @@ struct dayNightTextureSystem {
         } else if (utility::isInRange(dayProgress, 0.3f, 0.5f)) {
             prevTex = day;
             currTex = sunset;
-            skyColor = dayRGB + abs(sunsetRGB - dayRGB) * ((dayProgress - 0.3f) / 0.2f);
+            skyColor = glm::mix(dayRGB, sunsetRGB, (dayProgress - 0.3f) / 0.2f);
             return (dayProgress - 0.3f) / 0.2f;
         } else if (utility::isInRange(dayProgress, 0.5f, 0.7f)) {
             prevTex = sunset;
             currTex = night;
-            skyColor = sunsetRGB + abs(nightRGB - sunsetRGB) * ((dayProgress - 0.5f) / 0.2f);
+            skyColor = glm::mix(sunsetRGB, nightRGB, (dayProgress - 0.5f) / 0.2f);
             return (dayProgress - 0.5f) / 0.2f;
         } else if (utility::isInRange(dayProgress, 0.7f, 0.8f)) {
             prevTex = night;
@@ -93,7 +93,7 @@ struct dayNightTextureSystem {
         } else {
             prevTex = night;
             currTex = sunrise;
-            skyColor = nightRGB + abs(sunriseRGB - nightRGB) * ((dayProgress - 0.8f) / 0.2f);
+            skyColor = glm::mix(nightRGB, sunriseRGB, (dayProgress - 0.8f) / 0.2f);
             return (dayProgress - 0.8f) / 0.2f;
         }
     }
@@ -142,6 +142,7 @@ int main() {
     srand(time(nullptr));
     // Printing welcome message
     int worldType = 0, renderDistance = 0, worldWidth = 0, frameLimiter = 1;
+    pointerInformation info;
     std::cout << "\n\u001B[34mWelcome to a clone of Minecraft, created by z5309206 for COMP3421 ass3 21T3 UNSW!\n\n\u001B[0m";
     loader::printOutPresets();
     std::cout << "Enter your desired preset world [If not recognised, Basic Super Flat World is used]: ";
@@ -161,6 +162,9 @@ int main() {
     }
     std::cout << "Enable frame limiter? [0 for \"No\" | Anything else for \"Yes\"]: ";
     std::cin >> frameLimiter;
+    std::cout << "Which reflections for Mirror Block? [0 for \"None\" | 1 for \"Premade Cubemap\" | 2 for \"Realtime Cubemap\"] (You can change this ingame with F2): ";
+    std::cin >> info.enableExperimental;
+    info.enableExperimental = glm::clamp(info.enableExperimental, 0, 2);
 
     GLFWwindow *window = chicken3421::make_opengl_window(WIN_WIDTH, WIN_HEIGHT, "COMP3421 21T3 Assignment 2 [Minecraft: Clone Simulator]");
     chicken3421::image_t faviconImage = chicken3421::load_image("./res/textures/favicon.png", false);
@@ -411,7 +415,6 @@ int main() {
     /**
      * Setting up clicks
      */
-    pointerInformation info;
     info.gameWorld = &gameWorld;
     info.defaultShader = &defaultShader;
     glfwSetWindowUserPointer(window, &info);

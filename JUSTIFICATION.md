@@ -5,7 +5,30 @@ If you are answering a criteria in a different section, please describe that lik
 
 ## Section 1: Design Pitch. Describe a possible setting and what kind of graphics technology would be necessary to implement this. These components do not have to be implemented in this project. Suggestion: 200 words should be more than enough for this.
 
-I did not complete part 1. (If you would like your Design Pitch to be marked, you will need to replace this line)
+•	What is the setting?
+The setting is a blank canvas and the player gets to decide on what it’s going to be. Using the in-game tools they are given, they can be able to craft a variety of settings by mixing and matching blocks that will give different effects depending on the combination. (Different blocks can emit light/bloom effect, emit different particles, change its behaviour based on being underwater or not etc.)
+
+•	What is unique about it?
+The player can experiment with different combinations to try and discover new effects to put into their scenery. Many other projects are static and can’t vary much (only smoke particles can emit from this specific spot in the world etc.). On the other hand, nothing is inherently hardcoded into this setting’s environment and will change depending on how the player interacts with the world.
+
+•	What kinds of Graphics features are necessary to display this setting?
+-	Bloom for the light emitting blocks
+-	Shadow mapping so the player can create darker areas in their world if the setting they desire requires it
+-	Particle system to add more variety to the world they are creating
+-	Lighting so the player can decide between a day setting or a night setting
+-	Post-processing effects such as kernels so the player can take screenshots of their world through a variety of lens for a cinematic feel, retro feel etc.
+-	Reflections such as planar or Cube mapping so the player can play around with blocks that will reflect the scene. Also makes the water more believable. Will need clipping planes to prevent unnecessary parts of the scene from being reflected.
+-	Lens flare to add a more cinematic feel to the player’s scene if they want it (Not implemented in this project)
+-	Deferred renderer to handle more lights in the scene (Not implemented in this project)
+•	How will this world be used?
+The player will use this world in first person by destroying and placing elements from a selection of blocks in their hot bar.
+
+•	Will characters traverse and view it in a particular way?
+The player can jump on blocks, bounce off certain blocks, and fly around their world. When underwater, the vision becomes blurry and wavy to simulate being underwater.
+
+•	How will it need to be rendered to be useful and visible to a player?
+The scene will be rendered through multiple framebuffers. One for the shadow mapping for the aforementioned reason, another for the bloom effect (ping-ponged between two framebuffers to apply gaussian blur), one for real-time cube mapping and two more for the reflections in the water. One final frame buffer to apply the kernels that the player chooses to add effect to their scene.
+
 
 ## Section 2: Advanced Lighting
 
