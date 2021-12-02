@@ -591,13 +591,14 @@ namespace scene {
             hotbar.push_back(combineBlockData("diamond_ore", false, false));
             hotbar.push_back(combineBlockData("slime_block", false, false, true));
             hotbar.push_back(combineBlockData("marccoin_block", false, false, true));
-            hotbar.push_back(combineBlockData("bedrock", false, false));
-            hotbar.push_back(combineBlockData("mirror", false, false, false));
             hotbar.push_back(combineBlockData("coral_brain", false, false));
             hotbar.push_back(combineBlockData("coral_bubble", false, false));
             hotbar.push_back(combineBlockData("coral_fire", false, false));
             hotbar.push_back(combineBlockData("coral_horn", false, false));
             hotbar.push_back(combineBlockData("coral_tube", false, false));
+            hotbar.push_back(combineBlockData("mirror", false, false, false));
+            hotbar.push_back(combineBlockData("bedrock", false, false));
+            
             // Second hotbar
             hotbarSecondary.push_back(combineBlockData("white", false, false));
             hotbarSecondary.push_back(combineBlockData("orange", false, false));
