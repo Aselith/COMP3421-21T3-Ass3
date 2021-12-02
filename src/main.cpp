@@ -108,8 +108,8 @@ struct dayNightTextureSystem {
 };
 
 struct waterTextures {
-    const float frameLen = 0.15f;
-    const float waveSpeed = 0.06;
+    const float frameLen  = 0.30f;
+    const float waveSpeed = 0.06f;
     GLuint frames[32];
     GLuint blackTex, dudvMap, normalMap;
     GLuint currFrame = 0;
