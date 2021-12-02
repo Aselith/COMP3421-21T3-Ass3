@@ -415,6 +415,7 @@ namespace scene {
         // Particles
         GLuint bubble = texture_2d::init("./res/textures/particles/bubble.png");
         GLuint tear = texture_2d::init("./res/textures/particles/obsidian_tear.png");
+        GLuint glint = texture_2d::init("./res/textures/particles/glint.png");
         GLuint smokeParticles[TOTAL_SMOKE] = {
             texture_2d::init("./res/textures/particles/smoke/big_smoke_0.png"),
             texture_2d::init("./res/textures/particles/smoke/big_smoke_1.png"),
@@ -2018,7 +2019,12 @@ namespace scene {
                     if (rand() % 30 == 0) {
                         particle::spawnBlockAmbientParticle(&listOfParticles, pos, dust[rand() % TOTAL_DUST], glm::vec3(255.0f, 0.0f, 0.0f) / 255.0f);
                     }
-                } else if (strcmp(block->name.c_str(), "coral") == 0) {
+                } else if (strcmp(block->name.c_str(), "marccoin_block") == 0) {
+                    // Spawning glitter
+                    if (rand() % 30 == 0) {
+                        particle::spawnBlockAmbientParticle(&listOfParticles, pos, glint, glm::vec3(255.0f, 215.0f, 0.0f) / 255.0f);
+                    }
+                } else if (block->name.rfind("coral", 0) == 0) {
                     // Spawning fish around coral
                     if (isUnderwater(pos)) {
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
@@ -2180,6 +2186,8 @@ namespace scene {
             destroy(&screen, true);
             destroy(&highlightedBlock, true);
             texture_2d::destroy(bubble);
+            texture_2d::destroy(tear);
+            texture_2d::destroy(glint);
 
             for (auto i : moonPhases) {
                 texture_2d::destroy(i);
@@ -2197,6 +2205,8 @@ namespace scene {
             for (int i = 0; i < TOTAL_FISH; i++) {
                 texture_2d::destroy(fish[i]);
             }
+
+            particle::destroyAllParticles(&listOfParticles);
         }
     };
 

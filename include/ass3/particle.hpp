@@ -44,6 +44,8 @@ namespace particle {
     void drawAllParticles(std::vector<particle_t *> *list, renderer::renderer_t defaultRender, glm::mat4 view, glm::mat4 proj, GLfloat gravity, GLfloat dt, bool animate = true);
 
     void animateParticle(particle_t* particlePointer, GLfloat gravity, GLfloat dt);
+
+    void destroyAllParticles(std::vector<particle_t *> *list);
 }
 
 #endif //COMP3421_ASS3_PARTICLE_HPP

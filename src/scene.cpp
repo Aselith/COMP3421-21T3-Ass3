@@ -149,9 +149,6 @@ namespace scene {
         data.intensity = intensity;
         data.rgb = color;
         data.blockName = stringName;
-        if (data.blockName.rfind("coral", 0) == 0) {
-            data.blockName = "coral";
-        }
         data.rotatable = rotatable;
 
         return data;

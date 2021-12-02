@@ -285,14 +285,6 @@ int main() {
                     glfwRestoreWindow(win);
                 }  
                 break;
-            case GLFW_KEY_F2:
-                if (action != GLFW_PRESS) return;
-                info->enableExperimental = (info->enableExperimental + 1) % 3;
-                break;
-            case GLFW_KEY_F1:
-                if (action != GLFW_PRESS) return;
-                info->gameWorld->hideScreen = !info->gameWorld->hideScreen;
-                break;
             case GLFW_KEY_LEFT_BRACKET:
                 if (action == GLFW_RELEASE) return;
                 info->gameWorld->changeSeaLevel(-1);
@@ -301,7 +293,15 @@ int main() {
                 if (action == GLFW_RELEASE) return;
                 info->gameWorld->changeSeaLevel(1);
                 break;
-            case GLFW_KEY_R:
+            case GLFW_KEY_F1:
+                if (action != GLFW_PRESS) return;
+                info->gameWorld->hideScreen = !info->gameWorld->hideScreen;
+                break;
+            case GLFW_KEY_F2:
+                if (action != GLFW_PRESS) return;
+                info->enableExperimental = (info->enableExperimental + 1) % 3;
+                break;
+            case GLFW_KEY_F3:
                 if (action != GLFW_PRESS) return;
                 info->hdrType++;
                 info->hdrType %= TOTAL_TONE_MAPS;
@@ -327,7 +327,7 @@ int main() {
                         break;
                 }
                 break;
-            case GLFW_KEY_T:
+            case GLFW_KEY_F4:
                 if (action != GLFW_PRESS) return;
                 info->kernelType++;
                 info->kernelType %= TOTAL_KERNELS;

@@ -359,4 +359,13 @@ namespace particle {
 
 	}
 
+	void destroyAllParticles(std::vector<particle_t *> *list) {
+		size_t index = 0;
+		while (index < list->size()) {
+			static_mesh::destroy(list->at(index)->mesh);
+			free(list->at(index));
+			list->erase(list->begin() + (int)index);
+		}
+	}
+
 }
