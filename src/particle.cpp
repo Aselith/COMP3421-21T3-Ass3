@@ -162,7 +162,7 @@ namespace particle {
 			newParticle->translation.x = position.x;
 			newParticle->translation.y = position.y;
 			newParticle->translation.z = position.z;
-			newParticle->translation += utility::genRandomPointOnCube(0.51f);
+			newParticle->translation += utility::genRandomPointOnCube(0.515f);
 			newParticle->minimumYvalue = -999.0f;
 			newParticle->maximumYvalue = 999.0f;
 			newParticle->bounceCount = 0;

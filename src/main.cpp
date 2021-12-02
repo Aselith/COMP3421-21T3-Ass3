@@ -29,6 +29,7 @@ const float W_PRESS_SPACE = 0.4f;
 const int BLOOM_INTENSITY = 12;
 const int TOTAL_TONE_MAPS = 6;
 const int TOTAL_KERNELS = 8;
+const int REFLECTION_REFRESH_RATE = 3;
 
 // 0 -> Basic flat dirt world
 // 1 -> Wooly world
@@ -52,36 +53,47 @@ struct dayNightTextureSystem {
     GLuint sunset = texture_2d::loadCubemap("./res/textures/skybox/sunset");
     GLuint night = texture_2d::loadCubemap("./res/textures/skybox/night");
     GLuint sunrise = texture_2d::loadCubemap("./res/textures/skybox/sunrise");
+    glm::vec3 dayRGB = glm::vec3(139.0f, 181.0f, 253.0f) / 255.0f;
+    glm::vec3 sunriseRGB = glm::vec3(247.0f, 205.0f, 93.0f) / 255.0f;
+    glm::vec3 sunsetRGB = glm::vec3(223.0f, 170.0f, 100.0f) / 255.0f;
+    glm::vec3 nightRGB = glm::vec3(16.0f, 16.0f, 16.0f) / 255.0f;
     
     public:
     GLuint practice = texture_2d::loadCubemap("./res/textures/premadeSkybox");
     GLuint prevTex, currTex;
+    glm::vec3 skyColor = {0, 0, 0};
 
     float updatePrevCurr(float dayProgress) {
         dayProgress = fmod(dayProgress, 1.0f);
         if (utility::isInRange(dayProgress, 0.0f, 0.2f)) {
             prevTex = sunrise;
             currTex = day;
+            skyColor = sunriseRGB + abs(dayRGB - sunriseRGB) * (dayProgress / 0.2f);
             return dayProgress / 0.2f;
         } else if (utility::isInRange(dayProgress, 0.2f, 0.3f)) {
             prevTex = day;
             currTex = day;
+            skyColor = dayRGB;
             return 1.0f;
         } else if (utility::isInRange(dayProgress, 0.3f, 0.5f)) {
             prevTex = day;
             currTex = sunset;
+            skyColor = dayRGB + abs(sunsetRGB - dayRGB) * ((dayProgress - 0.3f) / 0.2f);
             return (dayProgress - 0.3f) / 0.2f;
         } else if (utility::isInRange(dayProgress, 0.5f, 0.7f)) {
             prevTex = sunset;
             currTex = night;
+            skyColor = sunsetRGB + abs(nightRGB - sunsetRGB) * ((dayProgress - 0.5f) / 0.2f);
             return (dayProgress - 0.5f) / 0.2f;
         } else if (utility::isInRange(dayProgress, 0.7f, 0.8f)) {
             prevTex = night;
             currTex = night;
+            skyColor = nightRGB;
             return 1.0f;
         } else {
             prevTex = night;
             currTex = sunrise;
+            skyColor = nightRGB + abs(sunriseRGB - nightRGB) * ((dayProgress - 0.8f) / 0.2f);
             return (dayProgress - 0.8f) / 0.2f;
         }
     }
@@ -430,7 +442,7 @@ int main() {
     // FIRST STAGE OF BLOOM FRAME BUFFER
     GLuint onlyBloomFBO, onlyBloomTexID, onlyBloomRBO;
     utility::createFramebuffers(&onlyBloomFBO, &onlyBloomTexID, &onlyBloomRBO, WIN_WIDTH, WIN_HEIGHT);
-    // END OF  FIRST STAGE OF BLOOM CREATION
+    // END OF FIRST STAGE OF BLOOM CREATION
 
     // PINGPONG FRAME BUFFERS
     GLuint pingpongFBO[2], pingpongBuffer[2];
@@ -464,8 +476,6 @@ int main() {
     GLuint temporalFrameBFBO, temporalFrameBTexID;
     utility::createFramebuffers(&temporalFrameBFBO, &temporalFrameBTexID, WIN_WIDTH, WIN_HEIGHT);
 
-    
-
     // DEPTH MAP
     GLuint depthMapFBO, depthMapTexID;
     glGenFramebuffers(1, &depthMapFBO);
@@ -492,6 +502,7 @@ int main() {
     float totalTime = 0.0f;
     float totalFrames = 0.0f;
     float blendValue = 0.0f;
+    unsigned int reflectionFrames = 0;
     bool firstPass = true;
 
     glfwShowWindow(window);
@@ -581,18 +592,19 @@ int main() {
         glUniformMatrix4fv(defaultShader.view_proj_loc, 1, GL_FALSE, glm::value_ptr(view_proj));
         glUniformMatrix4fv(defaultShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
-        if (info.enableExperimental > 0) {
+        reflectionFrames = (reflectionFrames + 1) % REFLECTION_REFRESH_RATE;
+        if (info.enableExperimental > 0 && reflectionFrames == 0) {
+
+            // Updating the shiny terrain
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
             gameWorld.updateShinyTerrain(
-                view_proj,
-                cubeReflectShader,
                 defaultShader,
-                skyboxShader,
-                {dayNightCalculator.prevTex, dayNightCalculator.currTex},
-                blendValue,
-                {WIN_WIDTH, WIN_HEIGHT},
-                (info.enableExperimental == 1) ? dayNightCalculator.practice : 0
+                dayNightCalculator.skyColor,
+                {WIN_WIDTH, WIN_HEIGHT}
             );
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
+        glViewport(0, 0, WIN_WIDTH, WIN_HEIGHT);
 
         // Drawing world via reflection, refraction and then via untampered
         
@@ -640,16 +652,13 @@ int main() {
                     gameWorld.drawShinyTerrain(
                         view_proj,
                         cubeReflectShader,
-                        defaultShader,
-                        skyboxShader,
-                        {dayNightCalculator.prevTex, dayNightCalculator.currTex},
-                        blendValue,
-                        {WIN_WIDTH, WIN_HEIGHT},
                         (info.enableExperimental == 1) ? dayNightCalculator.practice : 0
                     );
+                } else {
+                    gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, false);
                 }
                 defaultShader.activate();
-                gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, false);
+                
 
                 // Drawing skybox
                 blendValue = dayNightCalculator.updatePrevCurr(gameWorld.worldTime);
@@ -725,9 +734,10 @@ int main() {
         glBindFramebuffer(GL_FRAMEBUFFER, onlyBloomFBO);
             glClearColor(0, 0, 0, 1);
             defaultShader.activate();
+            defaultShader.setMat4("uViewProj", defaultShader.projection * gameWorld.getCurrCamera()->get_view());
             defaultShader.setInt("forceBlack", true);
             gameWorld.drawWorld(defaultShader, true, true);
-            gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, false);
+            gameWorld.drawShinyTerrainNormally(glm::mat4(1.0f), defaultShader, true);
             scene::drawBlock(&gameWorld.clouds, glm::mat4(1.0f), defaultShader, true);
             if (!gameWorld.cutsceneEnabled) gameWorld.drawHand(defaultShader);
             defaultShader.setInt("forceBlack", false);

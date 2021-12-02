@@ -28,12 +28,12 @@ namespace scene {
     const float CAMERA_SPEED          = 5.0f;
     const float PLAYER_RADIUS         = 0.25f; // 0.25
     const float SCREEN_DISTANCE       = 0.25f;
-    const int   REFLECTION_SIZE       = 256;
+    const int   REFLECTION_SIZE       = 512;
     const int   VOID_LEVEL            = -5;
     const float ZFIGHT_OFFSET         = 0.01f;
 
     const int   TOTAL_SMOKE           = 12;
-    const int   TOTAL_FISH            = 12;
+    const int   TOTAL_FISH            = 14;
     const int   TOTAL_FIREFLY         = 2;
     const int   TOTAL_DUST            = 4;
 
@@ -389,7 +389,7 @@ namespace scene {
         bool cutsceneEnabled = false, useReflectionCam = false, drawCelestials = true;;
         player::playerPOV playerCamera, cutsceneCamera, reflectionCamera;
         glm::vec3 oldPos, oldHandPos, oldHandRotation, lastRenderedPos;
-        int increments = 200, reflectionFrame = 0;
+        int increments = 200;
         int playerReachRange = 4 * increments;
         int groundLevel = -99999, aboveLevel = 99999;
         float cutsceneTick = 0;
@@ -411,6 +411,7 @@ namespace scene {
         node_t skyBox;
         node_t seaSurface, clouds;
 
+        GLuint mirrorGreenscreen = texture_2d::init("./res/textures/blocks/mirror_gs.png");
         // Particles
         GLuint bubble = texture_2d::init("./res/textures/particles/bubble.png");
         GLuint tear = texture_2d::init("./res/textures/particles/obsidian_tear.png");
@@ -440,7 +441,9 @@ namespace scene {
             texture_2d::init("./res/textures/particles/fish/blueTropicalFishA.png"),
             texture_2d::init("./res/textures/particles/fish/blueTropicalFishB.png"),
             texture_2d::init("./res/textures/particles/fish/whiteTropicalFishA.png"),
-            texture_2d::init("./res/textures/particles/fish/whiteTropicalFishB.png")
+            texture_2d::init("./res/textures/particles/fish/whiteTropicalFishB.png"),
+            texture_2d::init("./res/textures/particles/fish/grayTropicalFishA.png"),
+            texture_2d::init("./res/textures/particles/fish/grayTropicalFishB.png")
         };
         GLuint firefly[TOTAL_FIREFLY] = {
             texture_2d::init("./res/textures/particles/fireflyA.png"),
@@ -588,7 +591,7 @@ namespace scene {
             hotbar.push_back(combineBlockData("slime_block", false, false, true));
             hotbar.push_back(combineBlockData("marccoin_block", false, false, true));
             hotbar.push_back(combineBlockData("bedrock", false, false));
-            hotbar.push_back(combineBlockData("wip", false, false, false));
+            hotbar.push_back(combineBlockData("mirror", false, false, false));
             hotbar.push_back(combineBlockData("coral_brain", false, false));
             hotbar.push_back(combineBlockData("coral_bubble", false, false));
             hotbar.push_back(combineBlockData("coral_fire", false, false));
@@ -1205,15 +1208,17 @@ namespace scene {
             } else {
                 placeBlockVector = forcedPlace;
             }
-            auto placeX = placeBlockVector.x, placeY = placeBlockVector.y, placeZ = placeBlockVector.z;
+            size_t placeX = (size_t)placeBlockVector.x, placeY = (size_t)placeBlockVector.y, placeZ = (size_t)placeBlockVector.z;
             
-            if (isCoordOutBoundaries(placeX, placeY, placeZ)) {
+            if (isCoordOutBoundaries((int)placeX, (int)placeY, (int)placeZ)) {
                 return;
             }
 
             if (!terrain.at(placeX).at(placeY).at(placeZ).air) {
+                // Removes the block from the world and also spawns particles
                 auto blockTex = terrain.at(placeX).at(placeY).at(placeZ).textureID;
                 terrain.at(placeX).at(placeY).at(placeZ).textureID = 0;
+                texture_2d::destroy(terrain.at(placeX).at(placeY).at(placeZ).reflectionTexID);
                 terrain.at(placeX).at(placeY).at(placeZ).air = true;
                 terrain.at(placeX).at(placeY).at(placeZ).transparent = true;
                 terrain.at(placeX).at(placeY).at(placeZ).rotation = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -1833,50 +1838,29 @@ namespace scene {
             }
         }
 
-        void updateShinyTerrain(
-            const glm::mat4 &viewProj, 
-            renderer::renderer_t renderInfo,
-            renderer::renderer_t defaultRender,
-            renderer::renderer_t skyBoxRender,
-            glm::vec2 skyTextures,
-            GLfloat blendFactor,
-            glm::vec2 winSize,
-            GLuint currFBO,
-            GLuint forceMap = 0
-        ) {
-            auto oldViewProj = renderInfo.projection * getCurrCamera()->get_view();
-            reflectionFrame = (reflectionFrame + 1) % 100;
+        void updateShinyTerrain(renderer::renderer_t defaultRender, glm::vec3 skyColor,glm::vec2 winSize) {
             for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
-                if (listOfShinyBlocksToRender.at(i)->reflectionTexID == 0 || reflectionFrame == 0) {
+
+                if (listOfShinyBlocksToRender.at(i)->reflectionTexID != 0) {
                     texture_2d::destroy(listOfShinyBlocksToRender.at(i)->reflectionTexID);
-                    listOfShinyBlocksToRender.at(i)->reflectionTexID = texture_2d::createEmptyCubeMap(REFLECTION_SIZE);
-                    renderToEnvironmentMap(
-                        listOfShinyBlocksToRender.at(i)->reflectionTexID,
-                        listOfShinyBlocksToRender.at(i)->translation,
-                        defaultRender,
-                        skyBoxRender,
-                        skyTextures,
-                        blendFactor,
-                        oldViewProj,
-                        winSize
-                    );
                 }
+                listOfShinyBlocksToRender.at(i)->reflectionTexID = texture_2d::createEmptyCubeMap(REFLECTION_SIZE);
+                renderToEnvironmentMap(
+                    listOfShinyBlocksToRender.at(i)->reflectionTexID,
+                    listOfShinyBlocksToRender.at(i)->translation,
+                    defaultRender,
+                    skyColor,
+                    winSize
+                );
+
             }
         }
 
         void drawShinyTerrain(
             const glm::mat4 &viewProj, 
             renderer::renderer_t renderInfo,
-            renderer::renderer_t defaultRender,
-            renderer::renderer_t skyBoxRender,
-            glm::vec2 skyTextures,
-            GLfloat blendFactor,
-            glm::vec2 winSize,
-            GLuint currFBO,
             GLuint forceMap = 0
         ) {
-
-        
             for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
                 
                 renderInfo.activate();
@@ -1890,9 +1874,10 @@ namespace scene {
                 model *= glm::rotate(glm::mat4(1.0), glm::radians(listOfShinyBlocksToRender[i]->rotation.x), glm::vec3(1, 0, 0));
 
                 // Rendering the shiny bits
-                renderInfo.setMat4("uViewProj", viewProj);
+                renderInfo.setMat4("uViewProjReflection", viewProj);
                 renderInfo.setMat4("uModel", model);
-                renderInfo.setInt("skybox", 0);
+                renderInfo.setInt("environmentMap", 0);
+                renderInfo.setInt("uTex", 1);
                 renderInfo.setVec3("cameraPos", getCurrCamera()->pos);
                 glActiveTexture(GL_TEXTURE0);
                 if (forceMap != 0) {
@@ -1900,40 +1885,37 @@ namespace scene {
                 } else {
                     glBindTexture(GL_TEXTURE_CUBE_MAP, listOfShinyBlocksToRender.at(i)->reflectionTexID);
                 }
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, mirrorGreenscreen);
                 listOfShinyBlocksToRender.at(i)->ignoreCulling = true;
                 
                 glBindVertexArray(listOfShinyBlocksToRender[i]->mesh.vao);
                 glDrawElements(GL_TRIANGLES, listOfShinyBlocksToRender[i]->mesh.indices_count, GL_UNSIGNED_INT, nullptr);
                 glBindVertexArray(0);
             }
-
         }
 
         void renderToEnvironmentMap (
             GLuint cubeMap,
             glm::vec3 centre,
             renderer::renderer_t basicShader,
-            renderer::renderer_t skyboxRender,
-            glm::vec2 skyTextures,
-            GLfloat blendFactor,
-            glm::mat4 usualView,
+            glm::vec3 skyColor,
             glm::vec2 winSize
         ) {
-            std::cout << cubeMap << "\n";
+            // std::cout << cubeMap << "\n";
             glm::mat4 projMatrix = glm::perspective(glm::radians(90.0), 1.0, 0.1, 50.0);
             GLuint fbo, rbo;
             glGenFramebuffers(1, &fbo);
+            glGenRenderbuffers(1, &rbo);
             glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, cubeMap, 0);
             
-            glGenRenderbuffers(1, &rbo);
             glBindRenderbuffer(GL_FRAMEBUFFER, rbo);
             // Texture size as REFLECTION_SIZE
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, REFLECTION_SIZE, REFLECTION_SIZE);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, winSize.x, winSize.y);
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
-            glViewport(0, 0, REFLECTION_SIZE, REFLECTION_SIZE);
             auto cubemapCamera = player::createCamera(glm::vec3(centre.x, centre.y, centre.z), glm::vec3(centre.x, centre.y, centre.z));
 
             for (int i = 0; i < 6; i++) {
@@ -1944,6 +1926,7 @@ namespace scene {
                     cubeMap,
                     0
                 );
+                glViewport(0, 0, REFLECTION_SIZE, REFLECTION_SIZE);
                 cubemapCamera.roll = 0;
                 switch(i) {
                     case 0: // posX
@@ -1979,17 +1962,18 @@ namespace scene {
                 
                 basicShader.activate();
 
-                glClearColor(basicShader.sun_light_color.r, basicShader.sun_light_color.g, basicShader.sun_light_color.b, 1);
+                glClearColor(skyColor.r, skyColor.g, skyColor.b, 1);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
                 basicShader.setMat4("uViewProj", projViewMatrix);
-                
+
                 drawTerrain(glm::mat4(1.0f), basicShader, false, &cubemapCamera, true);
+                
             }
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glUniformMatrix4fv(basicShader.view_proj_loc, 1, GL_FALSE, glm::value_ptr(usualView));
-            glViewport(0, 0, winSize.x, winSize.y);
-            //chicken3421::delete_framebuffer(fbo);
-            //chicken3421::delete_framebuffer(rbo);
+            glBindRenderbuffer(GL_FRAMEBUFFER, 0);
+            
+            chicken3421::delete_framebuffer(fbo);
+            chicken3421::delete_renderbuffer(rbo);
         }
 
         void drawSkyBox(renderer::renderer_t shader, glm::mat4 proj, GLuint prevTex, GLuint currTex, GLfloat blendValue) {
@@ -2016,6 +2000,7 @@ namespace scene {
             for (auto block : listOfBlocksToRender) {
                 auto pos = block->translation;
                 if (strcmp(block->name.c_str(), "magma") == 0) {
+                    // Spawns either bubbles or smoke depending on if it's underwater or not
                     if (rand() % 15 == 0) {
                         if (isUnderwater(pos)) {
                             particle::spawnFloatingParticles(&listOfParticles, pos, bubble, seaSurface.translation.y);
@@ -2024,20 +2009,24 @@ namespace scene {
                         }
                     }
                 } else if (strcmp(block->name.c_str(), "crying_obsidian") == 0) {
+                    // Spawning purple obsidian tears
                     if (!isUnderwater(pos) && rand() % 30 == 0) {
                         particle::spawnDripParticles(&listOfParticles, pos, tear, findClosestBlockAboveBelow(-1, glm::vec3(pos.x, pos.y - 1, pos.z)) - 0.5f);
                     }
                 } else if (strcmp(block->name.c_str(), "redstone_ore") == 0) {
+                    // Spawning red dust around redstone
                     if (rand() % 30 == 0) {
                         particle::spawnBlockAmbientParticle(&listOfParticles, pos, dust[rand() % TOTAL_DUST], glm::vec3(255.0f, 0.0f, 0.0f) / 255.0f);
                     }
                 } else if (strcmp(block->name.c_str(), "coral") == 0) {
+                    // Spawning fish around coral
                     if (isUnderwater(pos)) {
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
                     }
                 } else if (utility::isInRange(worldTime, 0.65f, 0.9f) && rand() % 1000 == 0 && rand() % 35 == 0 && !isUnderwater(pos)) {
+                    // Spawning fire flies during the night around blocks
                     particle::spawnAmbientParticle(&listOfParticles, pos, firefly[rand() % TOTAL_FIREFLY], seaSurface.translation.y);
                 }
             }
@@ -2098,7 +2087,7 @@ namespace scene {
                         getHiddenFaces(x, y, z, terrain.at(x).at(y).at(z).culledFaces, true);
 
                         if (utility::countFalses(terrain.at(x).at(y).at(z).culledFaces) < 6) {
-                            if (strcmp(terrain.at(x).at(y).at(z).name.c_str(), "wip") == 0) {
+                            if (strcmp(terrain.at(x).at(y).at(z).name.c_str(), "mirror") == 0) {
                                 listOfShinyBlocksToRender.push_back(&terrain.at(x).at(y).at(z));
                             } else {
                                 listOfBlocksToRender.push_back(&terrain.at(x).at(y).at(z));
@@ -2122,22 +2111,22 @@ namespace scene {
          * @param glassIncluded 
          */
         void getHiddenFaces(int x, int y, int z, std::vector<bool> &faces, bool glassIncluded) {
-            if (!isCoordOutBoundaries(x, y - 1, z) && !(terrain.at(x).at(y - 1).at(z).air || strcmp(terrain.at(x).at(y - 1).at(z).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x).at(y - 1).at(z).transparent)) {
+            if (!isCoordOutBoundaries(x, y - 1, z) && !(terrain.at(x).at(y - 1).at(z).air || strcmp(terrain.at(x).at(y - 1).at(z).name.c_str(), "mirror") == 0 || glassIncluded * terrain.at(x).at(y - 1).at(z).transparent)) {
                 faces[0] = false; // 0 bottom
             }
-            if (!isCoordOutBoundaries(x, y + 1, z) && !(terrain.at(x).at(y + 1).at(z).air || strcmp(terrain.at(x).at(y + 1).at(z).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x).at(y + 1).at(z).transparent)) {
+            if (!isCoordOutBoundaries(x, y + 1, z) && !(terrain.at(x).at(y + 1).at(z).air || strcmp(terrain.at(x).at(y + 1).at(z).name.c_str(), "mirror") == 0 || glassIncluded * terrain.at(x).at(y + 1).at(z).transparent)) {
                 faces[1] = false; // 1 Is top
             }
-            if (!isCoordOutBoundaries(x, y, z + 1) && !(terrain.at(x).at(y).at(z + 1).air || strcmp(terrain.at(x).at(y).at(z + 1).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x).at(y).at(z + 1).transparent)) {
+            if (!isCoordOutBoundaries(x, y, z + 1) && !(terrain.at(x).at(y).at(z + 1).air || strcmp(terrain.at(x).at(y).at(z + 1).name.c_str(), "mirror") == 0 || glassIncluded * terrain.at(x).at(y).at(z + 1).transparent)) {
                 faces[2] = false;
             }
-            if (!isCoordOutBoundaries(x, y, z - 1) && !(terrain.at(x).at(y).at(z - 1).air || strcmp(terrain.at(x).at(y).at(z - 1).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x).at(y).at(z - 1).transparent)) {
+            if (!isCoordOutBoundaries(x, y, z - 1) && !(terrain.at(x).at(y).at(z - 1).air || strcmp(terrain.at(x).at(y).at(z - 1).name.c_str(), "mirror") == 0 || glassIncluded * terrain.at(x).at(y).at(z - 1).transparent)) {
                 faces[3] = false;
             }
-            if (!isCoordOutBoundaries(x + 1, y, z) && !(terrain.at(x + 1).at(y).at(z).air || strcmp(terrain.at(x + 1).at(y).at(z).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x + 1).at(y).at(z).transparent)) {
+            if (!isCoordOutBoundaries(x + 1, y, z) && !(terrain.at(x + 1).at(y).at(z).air || strcmp(terrain.at(x + 1).at(y).at(z).name.c_str(), "mirror") == 0 || glassIncluded * terrain.at(x + 1).at(y).at(z).transparent)) {
                 faces[4] = false;
             }
-            if (!isCoordOutBoundaries(x - 1, y, z) && !(terrain.at(x - 1).at(y).at(z).air || strcmp(terrain.at(x - 1).at(y).at(z).name.c_str(), "wip") == 0 || glassIncluded * terrain.at(x - 1).at(y).at(z).transparent)) {
+            if (!isCoordOutBoundaries(x - 1, y, z) && !(terrain.at(x - 1).at(y).at(z).air || strcmp(terrain.at(x - 1).at(y).at(z).name.c_str(), "mirror") == 0 || glassIncluded * terrain.at(x - 1).at(y).at(z).transparent)) {
                 faces[5] = false;
             }
         }
@@ -2194,6 +2183,19 @@ namespace scene {
 
             for (auto i : moonPhases) {
                 texture_2d::destroy(i);
+            }
+            texture_2d::destroy(mirrorGreenscreen);
+            for (int i = 0; i < TOTAL_SMOKE; i++) {
+                texture_2d::destroy(smokeParticles[i]);
+            }
+            for (int i = 0; i < TOTAL_DUST; i++) {
+                texture_2d::destroy(dust[i]);
+            }
+            for (int i = 0; i < TOTAL_FIREFLY; i++) {
+                texture_2d::destroy(firefly[i]);
+            }
+            for (int i = 0; i < TOTAL_FISH; i++) {
+                texture_2d::destroy(fish[i]);
             }
         }
     };
