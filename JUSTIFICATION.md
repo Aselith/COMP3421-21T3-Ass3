@@ -67,7 +67,7 @@ The scene will be rendered through multiple framebuffers. One for the shadow map
 
 ### 2a: Blinn-Phong Lighting. Include code references to the implementation of lighting in your project.
 
-Changed from phong to bling phong by implementing a half way vector between the camera to fragment and light to fragment. This can be seen in the default.frag line 107 -> 109 and water.frag line 47 -> 48
+Changed from phong to blinn phong by implementing a half way vector between the camera to fragment and light to fragment. This can be seen in the default.frag line 107 -> 109 and water.frag line 47 -> 48
 
 ### 2b: High Dynamic Range. Show use of an intermediate frame buffer to store light values > 1.0 and how that is converted to Low Dynamic Range. Include code references.
 
