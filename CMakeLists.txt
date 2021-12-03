@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project("COMP3421 Assignment 3")
+project("COMP3421 Assignment 2")
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -31,11 +31,32 @@ target_include_directories(${ACTIVITY} PUBLIC include)
 target_sources(${ACTIVITY}
         ${target}
         PRIVATE
-        include/ass3/memes.hpp
 
+        include/ass3/particle.hpp
+        include/ass3/renderer.hpp
+        include/ass3/frustum.hpp
+        include/ass3/loader.hpp
+        include/ass3/utility.hpp
+        include/ass3/static_mesh.hpp
+        include/ass3/scene.hpp
+        include/ass3/player.hpp
+        include/ass3/texture_2d.hpp
+        include/ass3/static_mesh.hpp
+        include/ass3/shapes.hpp
+        
+        src/particle.cpp
+        src/frustum.cpp
+        src/loader.cpp
+        src/utility.cpp
+        src/static_mesh.cpp
+        src/scene.cpp
+        src/player.cpp
+        src/texture_2d.cpp
+        src/static_mesh.cpp
+        src/shapes.cpp
+        
 
         src/main.cpp
-        src/memes.cpp
         )
 target_link_libraries(${ACTIVITY} PUBLIC ${COMMON_LIBS})
 target_compile_options(
