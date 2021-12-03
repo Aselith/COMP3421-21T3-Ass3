@@ -104,10 +104,10 @@ vec3 calcPointLight(SpotLight light, vec3 mat_diffuse, vec3 mat_specular) {
         return vec3(0, 0, 0);
     }
    
-    // Adjusted to use Bling Phong Model
+    // Adjusted to use Blinn Phong Model
     vec3 halfwayDir = normalize(lightDir + view);
     vec3 specular = light.specular * mat_specular * pow(max(dot(vNormal, halfwayDir), 0), uMat.phongExp);
-    // Old code using original phong model
+    // Old code using original Phong model
     // vec3 reflected = reflect(-lightDir, vNormal);
     // vec3 specular = light.specular * mat_specular * pow(max(0, dot(reflected, view)), uMat.phongExp);
 
