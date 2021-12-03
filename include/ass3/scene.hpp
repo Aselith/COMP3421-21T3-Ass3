@@ -306,6 +306,14 @@ namespace scene {
      */
     blockData combineBlockData(std::string stringName, bool transparent, bool illuminating, bool rotatable = false, glm::vec3 color = {0, 0, 0}, float intensity = 1.0f);
 
+    /**
+     * @brief Gives a view matrix depending on the given float values
+     * 
+     * @param pitch 
+     * @param yaw 
+     * @param pos 
+     * @return glm::mat4 
+     */
     glm::mat4 rotateViewMatrix(GLfloat pitch, GLfloat yaw, glm::vec3 pos);
 
     /**
@@ -345,6 +353,13 @@ namespace scene {
      */
     node_t createFlatSquare(GLuint texID, bool invert);
 
+    /**
+     * @brief Create a Flat Surface object that has both sides rendered
+     * 
+     * @param texID 
+     * @param width 
+     * @return node_t 
+     */
     node_t createFlatSurface(GLuint texID, int width);
 
     /**
@@ -684,12 +699,9 @@ namespace scene {
             //                              -> Left leg
             //                              -> Right leg
 
-
-
             // Update the textures of the hotbar
             scrollHotbar(1);
             scrollHotbar(-1);
-
 
             // Generating the new world
             for (size_t i = 0; i < listOfBlocks.size(); i++) {
@@ -738,6 +750,10 @@ namespace scene {
             return &playerCamera;
         }
 
+        /**
+         * @brief Repositions where the reflection camera is depending on where the current camera is
+         * 
+         */
         void updateReflectionCamera() {
             reflectionCamera.pos = getCurrCamera()->pos;
             reflectionCamera.pos.y -= 2 * ((getCurrCamera()->pos.y) - seaSurface.translation.y);
@@ -746,6 +762,10 @@ namespace scene {
             reflectionCamera.pitch = -getCurrCamera()->pitch;
         }
 
+        /**
+         * @brief Changes the sea level in the direction given. Clamps the value between world height and the void level
+         * 
+         */
         void changeSeaLevel(int direction) {
             if (cutsceneEnabled) return;
             seaSurface.translation.y -= ZFIGHT_OFFSET;
@@ -754,14 +774,12 @@ namespace scene {
             } else {
                 seaSurface.translation.y -= 0.5f;
             }
-            
             seaSurface.translation.y = std::min(std::max(seaSurface.translation.y, (float)VOID_LEVEL - 0.5f), (float)WORLD_HEIGHT);
             if (seaSurface.translation.y < VOID_LEVEL) {
                 seaSurface.air = true;
             } else {
                 seaSurface.air = false;
             }
-
             // Preventing Z-fighting
             seaSurface.translation.y += ZFIGHT_OFFSET;
         }
@@ -818,6 +836,11 @@ namespace scene {
             centreOfWorld.children[(size_t)moonIndex].children[0].textureID = moonPhases[moonPhase];
         }
 
+        /**
+         * @brief Returns the radius of the sky
+         * 
+         * @return int 
+         */
         int getSkyRadius() {
             return 30;
         }
@@ -1565,6 +1588,11 @@ namespace scene {
             }
         }
 
+        /**
+         * @brief Gets the texture ID of the block below the player
+         * 
+         * @return GLuint 
+         */
         GLuint blockBelowTexID() {
             glm::vec3 blockPos = {round(playerCamera.pos.x), groundLevel - 1, round(playerCamera.pos.z)};
     
@@ -1667,14 +1695,35 @@ namespace scene {
             return (int)direction * (int)WORLD_HEIGHT * (int)WORLD_HEIGHT;
         }
 
+        /**
+         * @brief Checks if the player is under the water surface or not
+         * 
+         * @return true 
+         * @return false 
+         */
         bool isUnderwater() {
             return seaSurface.translation.y >= glm::round(playerCamera.pos.y - 0.03f);
         }
 
+        /**
+         * @brief Checks if the position given is under water or not
+         * 
+         * @param pos 
+         * @return true 
+         * @return false 
+         */
         bool isUnderwater(glm::vec3 pos) {
             return seaSurface.translation.y >= glm::round(pos.y - 0.03f);
         }
 
+        /**
+         * @brief Draws all the particles inside listOfParticles. Does not draw anything if the shader given is not a particle render
+         * 
+         * @param particleRender 
+         * @param proj 
+         * @param dt 
+         * @param animate 
+         */
         void drawParticles(renderer::renderer_t particleRender, glm::mat4 proj, float dt, bool animate = true) {
             if (strcmp(particleRender.type.c_str(), "particle") != 0) return;
             particle::drawAllParticles(&listOfParticles, particleRender, getCurrCamera()->get_view(), proj, GRAVITY, dt, animate);
@@ -1716,6 +1765,11 @@ namespace scene {
             return;
         }
 
+        /**
+         * @brief Draws the hand seen on the bottom right of the screen
+         * 
+         * @param renderInfo 
+         */
         void drawHand(renderer::renderer_t renderInfo) {
             // Drawing the 3D hand on screen
             renderInfo.setInt("affectedByShadows", false);
@@ -1734,10 +1788,20 @@ namespace scene {
             renderInfo.setInt("affectedByShadows", true);
         }
 
+        /**
+         * @brief Returns the position of the centre of the world, disregarding the y values
+         * 
+         * @return glm::vec3 
+         */
         glm::vec3 getCentreOfWorld() {
             return {terrain.size() / 2, 0, terrain.at(0).at(0).size() / 2};
         }
 
+        /**
+         * @brief Get how big the generated world is
+         * 
+         * @return float 
+         */
         float getWorldSize() {
             return terrain.size();
         }
@@ -1817,6 +1881,13 @@ namespace scene {
             }
         }
 
+        /**
+         * @brief Draws shiny terrain aas if it was a solid block
+         * 
+         * @param parent_mvp 
+         * @param renderInfo 
+         * @param onlyIlluminating 
+         */
         void drawShinyTerrainNormally(const glm::mat4 &parent_mvp, renderer::renderer_t renderInfo, bool onlyIlluminating) {
 
             for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
@@ -1840,10 +1911,18 @@ namespace scene {
             }
         }
 
+        /**
+         * @brief Re-renders the environment reflection textures of all shiny terrain.
+         * 
+         * @param defaultRender 
+         * @param skyColor 
+         * @param winSize 
+         */
         void updateShinyTerrain(renderer::renderer_t defaultRender, glm::vec3 skyColor,glm::vec2 winSize) {
             for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
 
                 if (listOfShinyBlocksToRender.at(i)->reflectionTexID != 0) {
+                    // Delete the current texture if there was any
                     texture_2d::destroy(listOfShinyBlocksToRender.at(i)->reflectionTexID);
                 }
                 listOfShinyBlocksToRender.at(i)->reflectionTexID = texture_2d::createEmptyCubeMap(REFLECTION_SIZE);
@@ -1858,6 +1937,13 @@ namespace scene {
             }
         }
 
+        /**
+         * @brief Draws shiny terrain with the mirror greenscreen texture and reflecting its cubemap
+         * 
+         * @param viewProj 
+         * @param renderInfo 
+         * @param forceMap 
+         */
         void drawShinyTerrain(const glm::mat4 &viewProj, renderer::renderer_t renderInfo, GLuint forceMap = 0) {
             for (size_t i = 0; i < listOfShinyBlocksToRender.size(); i++) {
                 
@@ -1893,6 +1979,15 @@ namespace scene {
             }
         }
 
+        /**
+         * @brief Renders the environment around the given centre to the given cubeMap
+         * 
+         * @param cubeMap 
+         * @param centre 
+         * @param basicShader 
+         * @param skyColor 
+         * @param winSize, with x as the width, as the height
+         */
         void renderToEnvironmentMap (
             GLuint cubeMap,
             glm::vec3 centre,
@@ -1974,6 +2069,15 @@ namespace scene {
             chicken3421::delete_renderbuffer(rbo);
         }
 
+        /**
+         * @brief Renders the skybox to be behind everything
+         * 
+         * @param shader 
+         * @param proj 
+         * @param prevTex 
+         * @param currTex 
+         * @param blendValue 
+         */
         void drawSkyBox(renderer::renderer_t shader, glm::mat4 proj, GLuint prevTex, GLuint currTex, GLfloat blendValue) {
             glDepthFunc(GL_LEQUAL);
             shader.activate();
@@ -1994,6 +2098,10 @@ namespace scene {
             return;
         }
 
+        /**
+         * @brief Spawns particles around all blocks that are within rendering distance if the block meets
+         * a certain criteria
+         */
         void spawnBlockParticles() {
             for (auto block : listOfBlocksToRender) {
                 auto pos = block->translation;
@@ -2028,7 +2136,7 @@ namespace scene {
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
                         if (rand() % 100 == 0) particle::spawnParticleAround(&listOfParticles, pos, fish[rand() % TOTAL_FISH], seaSurface.translation.y);
                     }
-                } else if (utility::isInRange(worldTime, 0.65f, 0.9f) && rand() % 1000 == 0 && rand() % 35 == 0 && !isUnderwater(pos)) {
+                } else if (utility::isInRange(worldTime, 0.65f, 0.9f) && rand() % 1000 == 0 && rand() % 10 == 0 && !isUnderwater(pos)) {
                     // Spawning fire flies during the night around blocks
                     particle::spawnAmbientParticle(&listOfParticles, pos, firefly[rand() % TOTAL_FIREFLY], seaSurface.translation.y);
                 }

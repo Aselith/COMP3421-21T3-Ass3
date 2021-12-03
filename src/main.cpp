@@ -166,7 +166,7 @@ int main() {
     std::cin >> info.enableExperimental;
     info.enableExperimental = glm::clamp(info.enableExperimental, 0, 2);
 
-    GLFWwindow *window = chicken3421::make_opengl_window(WIN_WIDTH, WIN_HEIGHT, "COMP3421 21T3 Assignment 2 [Minecraft: Clone Simulator]");
+    GLFWwindow *window = chicken3421::make_opengl_window(WIN_WIDTH, WIN_HEIGHT, "COMP3421 21T3 Assignment 3 [Minecraft: The Real 1.18 Update]");
     chicken3421::image_t faviconImage = chicken3421::load_image("./res/textures/favicon.png", false);
     GLFWimage favicon = {faviconImage.width, faviconImage.height, (unsigned char *) faviconImage.data};
     glfwSetWindowIcon(window, 1, &favicon);
@@ -189,7 +189,7 @@ int main() {
     } else if (worldType == 5) {
         // Moves the water level up for parkour course map 2
         std::cout << "\nFind the single lone Marccoin hidden in the map!\n";
-        gameWorld.seaSurface.translation.y = 0.501;
+        gameWorld.seaSurface.translation.y = 0.5f + scene::ZFIGHT_OFFSET;
     }
 
     // Creating different shaders
@@ -228,8 +228,7 @@ int main() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwSetKeyCallback(window, [](GLFWwindow *win, int key, int scancode, int action, int mods) {
-        // Close program if esc is pressed
-        
+
         pointerInformation *info = (pointerInformation *) glfwGetWindowUserPointer(win);
         if (key != GLFW_KEY_I && key != GLFW_KEY_TAB) info->gameWorld->toggleInstructions(true);
         switch(key) {
@@ -243,6 +242,7 @@ int main() {
                 }
                 break;
             case GLFW_KEY_ESCAPE:
+                // Close program if esc is pressed
                 glfwSetWindowShouldClose(win, GLFW_TRUE);
                 break;
             case GLFW_KEY_E:
@@ -402,7 +402,6 @@ int main() {
     gameWorld.reflectionCamera = player::createCamera(glm::vec3(xPos, 5, zPos), glm::vec3(xPos, -10.0f, zPos));
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_ALPHA_TEST);
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glEnable(GL_CLIP_DISTANCE0);
@@ -422,7 +421,7 @@ int main() {
     float degrees = 90;
 
     gameWorld.updateBlocksToRender(true);
-    
+
     /**
      * Creating post processing effects
      */
@@ -451,7 +450,7 @@ int main() {
     GLuint pingpongFBO[2], pingpongBuffer[2];
     glGenFramebuffers(2, pingpongFBO);
     glGenTextures(2, pingpongBuffer);
-    
+
     for (GLuint i = 0; i < 2; i++) {
         glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
         glBindTexture(GL_TEXTURE_2D, pingpongBuffer[i]);
@@ -465,7 +464,7 @@ int main() {
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             std::cout << "Framebuffer not complete!\n";
         }
-            
+   
     }
 
     // Final frame buffer
@@ -888,6 +887,11 @@ int main() {
     finalFrameShader.deleteProgram();
     blurShader.deleteProgram();
     skyboxShader.deleteProgram();
+    copyFrameShader.deleteProgram();
+    cubeReflectShader.deleteProgram();
+    particleShader.deleteProgram();
+    waterShader.deleteProgram();
+    shadowShader.deleteProgram();
     gameWorld.destroyEverthing();
     chicken3421::delete_opengl_window(window);
 
@@ -903,6 +907,10 @@ int main() {
     chicken3421::delete_framebuffer(pingpongFBO[1]);
     texture_2d::destroy(pingpongBuffer[0]);
     texture_2d::destroy(pingpongBuffer[1]);
+
+    for (size_t i = 0; i < 32; i++) {
+        texture_2d::destroy(waterCalculator.frames[i]);
+    }
 
     std::cout << "Good bye!\n";
 

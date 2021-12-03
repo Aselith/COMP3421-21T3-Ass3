@@ -13,7 +13,7 @@ namespace loader {
 		"Iron World",
 		"Classic Sky Block",
 		"Parkour Course",
-		"Parkour Course 2: The Marccoin in the Tower"
+		"Parkour Course 2: Marccoin in the Tower"
 	};
 
 	void printOutPresets() {

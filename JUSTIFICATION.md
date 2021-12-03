@@ -3,6 +3,33 @@
 If you think any of the questions within the sections are not applicable, please write "N/A".
 If you are answering a criteria in a different section, please describe that like: "4a. This criteria is met by the implementation described in 2b."
 
+Video demonstration of (almost) everything in this project incase it fails to run on another machine:
+https://youtu.be/PsKbE1M6UJg
+
+CONTROLS:
+- Move mouse to move view
+- WASD to move
+- Double tap W to run
+- SPACE to jump
+- LEFT CLICK to break the highlighted block
+- RIGHT CLICK to place the block in your current hand
+- MIDDLE CLICK to quickly put the put that you've highlighted into your hand
+- MOUSE WHEEL to scroll through hotbar
+- LEFT SHIFT to sneak (Same functionality as in Minecraft, where you can not fall off blocks in sneak state. Sneaking will also stop highlighting - blocks so that you can see the specular reflections better)
+- TAB to maximise/minimise game window
+- C to sleep and wake up (Toggles between player and cutscene camera)
+- F to toggle flight mode (Toggles between player and flying camera)
+- G to print debug information into terminal, such as framerate player position etc.
+- O to convert the current world into lines of code so that it can be used as a preset world
+- E to change from the two hotbars (general blocks -> wool blocks and vice versa)
+- I to see these instructions ingame
+- Left and Right brackets to change sea level
+- F1 to hide/show HUD
+- F2 to cycle through the different Cube Map Reflections
+- F3 to cycle through the different HDR tone mappings
+- F4 to cycle through the different Kernels (When underwater, the blur kernel is applied automatically)
+- ESC to terminate game
+
 ## Section 1: Design Pitch. Describe a possible setting and what kind of graphics technology would be necessary to implement this. These components do not have to be implemented in this project. Suggestion: 200 words should be more than enough for this.
 
 •	What is the setting?
@@ -45,15 +72,15 @@ HDR can be first seen in the render loop in main.cpp between line 796 -> 819 and
 
 ### 3a: Environment Mapped Reflections. Show at least one object can reflect a cube map. Cube map can be a preprepared skybox and the object doesn't need to reflect other objects in the scene. Include code references to implementation.
 
-When starting up the program, you can choose to have the Mirror Block to sample render from a preprepared skybox (with its textures found in res/textures/premadeSkybox). You can also select premade skybox ingame by pressing F2. Rendering a preprepared skybox can be found in the "drawShinyTerrain" function between line 1861 -> 1894 of scene.hpp, and uses the cubeReflection shader (cubeReflection.frag and cubeReflection.vert) to calculate the reflected vector of the camera to the fragment and sample the environment cube map using that vector.
+When starting up the program, you can choose to have the Mirror Block to sample render from a preprepared skybox (with its textures found in res/textures/premadeSkybox). You can also select premade skybox ingame by pressing F2. Rendering a preprepared skybox can be found in the "drawShinyTerrain" function between line 1891 -> 1912 of scene.hpp, and uses the cubeReflection shader (cubeReflection.frag and cubeReflection.vert) to calculate the reflected vector of the camera to the fragment and sample the environment cube map using that vector. Then, the shaders uses the mirror green screen texture, replacing all pure green texels with a reflection of the cubemap.
 
 ### 3b: Realtime Cube Map. Describe how the cube map is created during the frame render and then used for a reflective object. Include code references to the generation of the cube map (3a should already describe the reflection process).
 
-Realtime cube map can be seen when placing down the Mirror Block and having selecting "Realtime Cubemap" at the start (or switch to it ingame). The Mirror Block is the block next to bedrock, or the block two spaces to the left of the starting block in the hotbar. The cube map is created every third frame, and is done between lines 1843->1859 and 1896 -> 1969. It creates the cubemap by first creating an empty cubemap texture (with null data) by calling texture_2d::createEmptyCubeMap(); found in texture_2d.cpp between lines 81 -> 95. and then write to it by using a camera with a field of vision of 90 degrees. With each face, the camera is rotated to match the face i.e. when writing for the top face, the camera will be pointed up. It then renders the scene and clears the color buffer bit for the next face. Once this is done, the associated frame and render buffer are destroyed leaving the texture only which is applied to the Mirror Block's reflection. All this can be seen in the renderToEnvironmentMap(); function between line 1896 -> 1969 of scene.hpp.
+Realtime cube map can be seen when placing down the Mirror Block and having selecting "Realtime Cubemap" at the start (or switch to it ingame). The Mirror Block is the block next to bedrock, or the block two spaces to the left of the starting block in the hotbar. The cube map is created every third frame, and is done between lines 1843->1859 and 1896 -> 1969. It creates the cubemap by first creating an empty cubemap texture (with null data) by calling texture_2d::createEmptyCubeMap(); found in texture_2d.cpp between lines 81 -> 95. and then write to it by using a camera with a field of vision of 90 degrees. With each face, the camera is rotated to match the face i.e. when writing for the top face, the camera will be pointed up. It then renders the scene and clears the color buffer bit for the next face. Once this is done, the associated frame and render buffer are destroyed leaving the texture only which is applied to the Mirror Block's reflection. All this can be seen in the renderToEnvironmentMap(); function between line 1991 -> 2070 of scene.hpp.
 
 ### 3c: In-World Camera/Magic Mirror. Describe how you have placed a camera in a scene that renders to a texture. Show where both of these objects are and how they function to show a different viewpoint of the scene. Include references to code.
 
-This is merged with planar reflections, as the Assignment Specifications says Planar Reflections can cover this component. A camera is placed directly beneath the player with an opposing pitch value to simulate reflection however. The distance between this camera and the current one is the distance between the current camera to the water surface multiplied by two. The placement of this refleciton camera can be seen between line 741 -> line 747 of scene.hpp.
+This is merged with planar reflections, as the Assignment Specifications says Planar Reflections can cover this component. A camera is placed directly beneath the player with an opposing pitch value to simulate reflection however. The distance between this camera and the current one is the distance between the current camera to the water surface multiplied by two. The placement of this reflection camera can be seen between line 757 -> line 763 of scene.hpp.
 
 ### 3d: Planar Reflections. Describe the system used to generate a planar reflection, including any techniques for perspective and/or near plane correction. Include references to code.
 
@@ -64,6 +91,8 @@ Planar reflection is used to generate the reflection off the water surface ingam
 ### 4a: Simple Colour Change. Describe how this project uses a framebuffer and what change is made to the colour data, including references to where this is implemented in code.
 
 The player can press F4 to cycle through the kernels until they get to the last two, which will pixelate the screen or invert all the colors on the screen. This is done in the finalFrame shader which uses finalFrame.vert and finalFrame.frag by first rendering the hdrBloom scene to the finalFrameFBO, and then passing the associated texture into the finalFrame shader. The neg and pixelate filters can be found between line 32 -> 43 in finalFrame.frag. Pixelate rounds the texture co-ordinate to a nearest floor co-ordinate to get a pixelated/retro feel, while neg subtracts the color from white rgb color.
+
+Simple colour change also gets automatically applied when the player is underwater by tinting the screen with a slight blue color seen in hdrBloom.frag between line 99 -> 102. Additionally, it also distorts the screen using a sin curve between line 74 -> 84 and a value called "cycle", which is pointing to the waterWaveCycle variable found in main.cpp between line 110 -> 139.
 
 ### 4b: Use of Kernels. Describe the kernel sampling technique in use, including code references.
 
@@ -95,26 +124,43 @@ The storage of framebuffers from previous frames can be found at the end of the 
 Extra techniques implemented: Shadow mapping and a Particle System
 
 * Shadow mapping
-Shadow mapping 
+Shadow mapping implementation starts with the frame buffer creation between main.cpp lines 481 -> 499 which reads in the depth component. Then at line 520, the game creates the light projection matrix, which is an orthogonal camera so that the shadows casted will be parallel with one another. At line 563 -> 584, the game calculates where the sun is, which will be the same as where this orthogonal camera will be and will be looking at where the player is. The game then calculates the view-projection matrix of the sun camera and renders the world + the player model with the shadow shader, which only cares about the gl_position of fragments. This will create a depth map in the texture binded to the depthmap fbo, which is then sampled in default.frag between line 647 -> 648 in main.cpp and in default.frag, that texture is seen in calcShadow() function between line 71 -> 94. Here, bias correcting is applied to the shadows, where the values seen on line 79 have been trial and errored such that there won't be any shadow acne at any time during the day. Percentage Closer Filtering is then applied after so that the shadows can look more smooth and less jagged/pixelated. It performs PCF by sampling the neighbouring tex co-ordinates on the shadow map to determine whether those co-ordinates are in shadow, and then averages the total texels sampled to determine how much of the directional light shines onto the surface (At line 150. If the average is 9/9, then it is completely in shadow, 0/9 means it is not in shadow). The issue with peter panning was not apparent on blocks so not much has been done to fix that. However, with the player shadow, I've offsetted the player model depending on the time of day so that it's feet will always seem like it's at the bottom of the player (Done between line 195 -> 200 in scene.hpp).
+
+* Particle System
+As particles play an important role in the original Minecraft to breathe life into their game, I decided to replicate their particle system as well. All the particles are stored in scene.hpp at line 416, and all the functions related to it are found in particle.hpp and particle.cpp. The particle struct in particle.hpp between line 12->26 contains all the data required to animate the particle, such as how much time it has left before it despawns, its velocities, its texture etc. Then, in all the functions that spawn particles inside particle.cpp, a particle is malloc'd with the required stats (and varied floats to make their animation more random and varied) and then stored inside the vector in scene.hpp. When drawing all the particles between line 285 -> 335, the model matrix first translates the particle to it's rightful position, and then it removes the top left 3x3 cells in the matrix and replaces it with a 3x3 identity matrix. This causes the particle to always face the camera no matter where the camera is. It then scales the particle appropriately. If it detects that the particle's life timer has reached below 0, it will free the memory associated with it, destroys the mesh and removes it from the vector list. If not, then it will animate the particle with the function between line 337 -> 360, which takes into account all the data that's stored inside the particle struct given. The particle shape is also created in shapes.cpp between line 194 -> 244. If a true boolean is passed into the function found between those lines, it will sample a random 3x3 in the provided texture.
+
+Particles emit from different sources:
+- Marccoin Block
+- Redstone Ore
+- Crying Obsidian
+- Magma Block (Bubbles when underwater, smoke when above water)
+- Brain, Bubble, Fire, Horn and Tube coral blocks emits fish particles when under water
+- During night time, firefly particles will spawn
+- Player landing on a solid block at a certain velocity will create particles + Player running
+- Breaking Blocks
+- Changing the terrain under water
 
 ## Section 6: Subjective Mark
 
 ### How have you fulfilled this requirement?
 
-I did not fulfill this requirement and will not receive marks for Section 6. 
-(If you would like your Section 6 to be marked, you will need to replace these lines)
+Building off from Assignment 2, I furthered my recreation of Minecraft by trying to incorporate the Graphic technologies required of this assignment; technologies that aren't present in Modern Minecraft. As such, the goal of this Assignment for me was to not perfectly replicate Minecraft, but to add a modern twist to it.
 
 ### What is your vision for the scene you are showing?
 
-I did not have a specific vision for this scene and do not need this to be marked.
+In addition to the previous vision of Assignment 2, I hope to show players what Minecraft may have looked like if it was created 10 years later with all the new graphical technologies such as shadow mapping and blooming.
 
 ### Are you referencing anything in this scene? Is this a quote or homage to any other art? Please describe it.
 
-Write your answer here...
+This is a remake of Notch Pearson's Minecraft, using textures by Jasper "JAPPA" Boerstra. The Block of Marc uses the Marccoin found in the tutorials and the Chicken emoji found on the course discord. The cloud texture was pulled from this Minecraft Resource Pack [https://www.planetminecraft.com/texture-pack/items-in-the-clouds/] and was edited a bit to suit the project. The fish and firefly particles was drawn together by me with reference to Minecraft fish/firefly. The preset map name "Marccoin in the Tower" was meant to be a reference to the Super Mario 64 levels titled wtih "Bowser in the (...)". The pre-rendered cubemap is a map of the iconic "pack.png" texture in the Minecraft folder and was taken from this video [https://www.youtube.com/watch?v=ea6py9q46QU]. The Mirror Block texture and concept was an entirely original creation.
 
 ### Please give instructions for how a viewer/player should interact with this scene to see all the content you have created.
 
-Write your answer here...
+Instructions (including the new ones) can be seen when the player first boots up the game. Just like with Assignment 2, the player needs to input their desired world size, the world preset, and their render distance. In addition now, there is an option to toggle which cubemap reflection to choose from before the game starts, as real time cubemapping may slow the game down substantially. If the player wishes to play around with the new particles, they may place down any of the particle-emitting blocks mentioned earlier. All controls can be seen at the top of this page as well.
+
+When underwater, the player can hold space to swim upwards. Their movement and vision is also restricted.
+
+Thank you for playing through this recreation of Minecraft!
 
 ## Section 7 (optional): Code Style Feedback
 

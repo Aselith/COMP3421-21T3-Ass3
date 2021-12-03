@@ -258,7 +258,7 @@ namespace particle {
 			newParticle->affectedByGravity = true;
 			newParticle->affectedByLight = true;
 
-			newParticle->lifeTimer = utility::genRandFloat(3.5f, 25.0f);
+			newParticle->lifeTimer = utility::genRandFloat(3.5f, 14.0f);
 			newParticle->translation.x = position.x;
 			newParticle->translation.y = position.y;
 			newParticle->translation.z = position.z;
@@ -321,7 +321,7 @@ namespace particle {
 				glBindVertexArray(0);
 			}
 
-			if (particlePointer->lifeTimer <= 0) {
+			if (particlePointer->lifeTimer <= 0.0f) {
 				// Destory particle when the timer reaches below 0
 				static_mesh::destroy(list->at(index)->mesh);
 				free(list->at(index));
