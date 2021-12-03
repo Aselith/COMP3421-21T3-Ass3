@@ -100,13 +100,13 @@ vec3 calcPointLight(SpotLight light, vec3 mat_diffuse, vec3 mat_specular) {
     
     vec3 view = normalize(uCameraPos - vPosition);
 
-    if (dot(lightDir, vNormal) <= 0) {
-        return vec3(0, 0, 0);
+    if (dot(lightDir, vNormal) < 0) {
+        return vec3(0, 0, 0); // If the light is behind the surface, then automatically assume there is no light.
     }
    
     // Adjusted to use Blinn Phong Model
     vec3 halfwayDir = normalize(lightDir + view);
-    vec3 specular = light.specular * mat_specular * pow(max(dot(vNormal, halfwayDir), 0), uMat.phongExp);
+    vec3 specular = light.specular * mat_specular * pow(max(dot(vNormal, halfwayDir), 0), uMat.phongExp * 5);
     // Old code using original Phong model
     // vec3 reflected = reflect(-lightDir, vNormal);
     // vec3 specular = light.specular * mat_specular * pow(max(0, dot(reflected, view)), uMat.phongExp);

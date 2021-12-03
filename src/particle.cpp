@@ -258,7 +258,7 @@ namespace particle {
 			newParticle->affectedByGravity = true;
 			newParticle->affectedByLight = true;
 
-			newParticle->lifeTimer = utility::genRandFloat(3.5f, 14.0f);
+			newParticle->lifeTimer = utility::genRandFloat(3.5f, 9.5f);
 			newParticle->translation.x = position.x;
 			newParticle->translation.y = position.y;
 			newParticle->translation.z = position.z;
@@ -266,7 +266,7 @@ namespace particle {
 			newParticle->maximumYvalue = 999.0f;
 			newParticle->bounceCount = 3;
 			newParticle->yVelocity = utility::genRandFloat(4.0f, 5.5f);
-
+			// Spawn with a velocity that directs from the middle to outside on a circle by using gen eqn of circle
 			sign = (rand() % 2 == 0) ? -1.0f : 1.0f;
 			auto xPoint = utility::genRandFloat(-0.5f, 0.5f);
 			auto zPoint = sign * glm::sqrt(abs((xPoint * xPoint) - (RADIUS * RADIUS)));

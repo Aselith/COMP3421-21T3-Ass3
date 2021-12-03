@@ -595,9 +595,9 @@ int main() {
         glUniformMatrix4fv(defaultShader.light_proj_loc, 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
         reflectionFrames = (reflectionFrames + 1) % REFLECTION_REFRESH_RATE;
-        if (info.enableExperimental > 0 && reflectionFrames == 0) {
+        if (info.enableExperimental == 2 && reflectionFrames == 0) {
 
-            // Updating the shiny terrain
+            // Updating the shiny terrain only when realtime cubemapping is selected
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             gameWorld.updateShinyTerrain(
                 defaultShader,
