@@ -172,18 +172,18 @@ Thank you for playing through my recreation of Minecraft!
 
 ### There are no marks assigned to code style in this assignment. However, if you would like to receive some feedback on your coding style, please point out a section of your code (up to 100 lines) and your tutor will give you some written feedback on the structure and readability of that code.
 
-Write your answer here (lines numbers or function names that you'd like reviewed)
+N/A
 
 ## Section 8 (optional): Use of External Libraries
 
 ### What does the library do?
 
-Write your answer here...
+N/A
 
 ### Why did you decide to use it?
 
-Write your answer here...
+N/A
 
 ### How does this integrate with the assignment project build system? Please include any instructions and requirements if a marker needs to integrate an external library.
 
-Write your answer here...
+N/A
